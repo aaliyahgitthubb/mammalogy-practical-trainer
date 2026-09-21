@@ -1,0 +1,9 @@
+{
+  "name":"Mammalogy Practical Trainer",
+  "short_name":"Mammalogy Trainer",
+  "start_url":"./",
+  "display":"standalone",
+  "background_color":"#f5f7fa",
+  "theme_color":"#243447",
+  "description":"Mammalogy specimen practical and species study trainer."
+}

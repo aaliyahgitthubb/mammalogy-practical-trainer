@@ -1,0 +1,21 @@
+HOW UPDATES WORK
+
+This is a local app, so when a new program version is generated you normally download the new ZIP and replace the program files.
+
+You do NOT need to re-enter your personal study data if you:
+1. Open the old trainer.
+2. Home -> Export Full Backup.
+3. Download the new trainer.
+4. Start the new trainer.
+5. Home -> Import Backup.
+6. Select your mammalogy-trainer-backup.json.
+
+The backup carries your custom images, study cards, species notes, image tags, quiz progress, and settings.
+
+If the trainer is eventually hosted online, the app itself can be updated centrally and you can use one URL instead of downloading each new version.
+
+
+CURRENT FAMILY RULES
+- Cricetidae entries accept ONLY Cricetidae.
+- The old source spelling Crietidae is no longer accepted.
+- Mountain beaver has no required family answer and is excluded from Family-only quiz mode.

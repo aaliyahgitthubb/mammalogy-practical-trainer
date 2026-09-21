@@ -1,0 +1,43 @@
+
+*{box-sizing:border-box}
+body{margin:0;font-family:Arial,Helvetica,sans-serif;background:#f3f5f7;color:#17212b}
+button,input,select,textarea{font:inherit}
+button{border:1px solid #c7ced6;background:#fff;border-radius:8px;padding:9px 13px;cursor:pointer}
+button:hover{background:#eef2f5}
+button.primary{background:#1e5b8c;color:#fff;border-color:#1e5b8c}
+button.primary:hover{background:#16486f}
+button.danger{color:#a32626;border-color:#e0b7b7}
+.wide{width:100%;margin-top:8px}
+.shell{min-height:100vh}.topbar{height:58px;background:#172b3a;color:#fff;display:flex;align-items:center;padding:0 22px;gap:24px}
+.brand{background:none;border:0;color:#fff;font-weight:700;font-size:18px;padding:0}.topbar nav{display:flex;gap:6px}.topbar nav button{background:transparent;color:#e8eef3;border-color:transparent}
+.topbar nav button:hover{background:#294354}
+.content{max-width:1400px;margin:auto;padding:26px}.page-title h1{margin:0 0 18px;font-size:28px}
+.hero{display:flex;justify-content:space-between;gap:24px;background:#fff;border:1px solid #d7dde3;border-radius:12px;padding:22px;margin-bottom:18px}.hero h2{margin-top:0}.statbox{display:grid;grid-template-columns:auto auto;gap:2px 12px;align-content:center;text-align:right}.statbox strong{font-size:25px}.statbox span{color:#66717c}
+.grid{display:grid;gap:18px;margin-bottom:18px}.grid.two{grid-template-columns:1fr 1fr}.grid.three{grid-template-columns:repeat(3,1fr)}
+.panel{background:#fff;border:1px solid #d7dde3;border-radius:12px;padding:18px}.panel.compact{min-height:170px}
+.panel h2,.panel h3{margin-top:0}.button-grid{display:grid;grid-template-columns:1fr 1fr;gap:9px}.settings-row{display:flex;gap:20px;flex-wrap:wrap;margin-top:16px;color:#53616d}.settings-row label{display:flex;align-items:center;gap:7px}
+.big{font-size:42px;font-weight:700}.score{font-size:72px;font-weight:800;text-align:center}.results{text-align:center}
+.progressbar{height:8px;background:#dfe5ea;border-radius:20px;overflow:hidden;margin-bottom:18px}.progressbar span{display:block;height:100%;background:#1e5b8c}
+.quiz-card{display:grid;grid-template-columns:minmax(0,1.5fr) minmax(320px,.7fr);gap:22px;background:#fff;border:1px solid #d7dde3;border-radius:12px;padding:18px}.image-wrap{background:#eef1f3;min-height:500px;display:flex;align-items:center;justify-content:center;border-radius:9px;overflow:hidden}.image-wrap img{max-width:100%;max-height:620px;object-fit:contain;cursor:zoom-in}.quiz-side{display:flex;flex-direction:column;gap:14px}.quiz-side label{font-weight:700;display:flex;flex-direction:column;gap:7px}.quiz-side input{padding:11px;border:1px solid #c7ced6;border-radius:8px}.button-row{display:flex;gap:8px;flex-wrap:wrap}.image-meta,.tip{font-size:13px;color:#66717c}.answer-result{border-radius:8px;padding:12px}.answer-result.correct{background:#e6f5e9;border:1px solid #a8d4b0}.answer-result.incorrect{background:#fff0f0;border:1px solid #e2b1b1}
+
+.study-layout,.manage-layout{display:grid;grid-template-columns:285px 1fr;gap:18px}.species-sidebar{background:#fff;border:1px solid #d7dde3;border-radius:12px;padding:12px;height:fit-content;position:sticky;top:12px;max-height:calc(100vh - 90px);overflow:auto}.search{width:100%;padding:10px;border:1px solid #c7ced6;border-radius:8px;margin-bottom:10px}.species-list-btn{display:block;text-align:left;width:100%;margin-bottom:5px;border-color:transparent}.species-list-btn small{display:block;color:#66717c;margin-top:3px}.species-list-btn.selected{background:#e8f0f6;border-color:#b8cedd}
+.study-main{min-width:0}.species-heading{display:flex;justify-content:space-between;gap:18px;align-items:flex-start;background:#fff;border:1px solid #d7dde3;border-radius:12px;padding:18px}.species-heading h2{margin:0 0 5px}.species-heading p{margin:0;color:#66717c}
+.study-tabs{display:flex;gap:5px;margin:14px 0}.study-tabs button.active{background:#1e5b8c;color:#fff;border-color:#1e5b8c}
+.cards-header{display:flex;justify-content:space-between;align-items:center}.cards-header h3 span{font-size:13px;color:#66717c}
+.study-card{background:#fff;border:1px solid #d7dde3;border-radius:10px;padding:15px;margin-bottom:10px;display:grid;grid-template-columns:1fr 1.4fr auto;gap:14px;align-items:start}.study-card h4{margin:8px 0 0}.card-answer{white-space:pre-wrap;color:#384754}.card-actions{display:flex;gap:5px}.tag{font-size:11px;background:#e9eef2;padding:4px 7px;border-radius:10px;color:#52606c}
+.notes{margin-top:14px;white-space:pre-wrap}.empty{text-align:center;background:#fff;border:1px dashed #c7ced6;border-radius:10px;padding:40px;color:#66717c}
+.flashcard{background:#fff;border:2px solid #b9c7d1;border-radius:14px;min-height:330px;padding:45px;display:flex;flex-direction:column;justify-content:center;align-items:center;text-align:center;cursor:pointer;box-shadow:0 4px 16px #00000012}.flash-label{font-size:12px;letter-spacing:1px;color:#66717c;font-weight:700}.flash-text{font-size:30px;max-width:850px;margin:25px 0;white-space:pre-wrap}.flash-hint{font-size:13px;color:#7a8791}.flash-controls{display:flex;justify-content:center;align-items:center;gap:20px;padding:14px}
+
+.paste-box{border:2px dashed #9db1c0;border-radius:12px;background:#f8fafb;padding:28px;text-align:center;margin:14px 0;display:flex;flex-direction:column;gap:8px}.paste-box:focus{outline:3px solid #bcd6e8}.paste-box span{color:#66717c}
+.upload-row{display:flex;gap:10px;align-items:center;margin-bottom:14px}.file-button{display:inline-block;padding:9px 13px;background:#fff;border:1px solid #c7ced6;border-radius:8px;cursor:pointer}.file-button input{display:none}
+.image-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:14px}.image-admin{background:#fff;border:1px solid #d7dde3;border-radius:10px;overflow:hidden}.image-admin img{width:100%;height:190px;object-fit:contain;background:#eef1f3;cursor:zoom-in}.image-admin-meta{padding:9px;display:flex;flex-direction:column;gap:7px;font-size:12px;color:#66717c}.image-admin-meta select{padding:7px}
+.table-wrap{overflow:auto}table{width:100%;border-collapse:collapse}th,td{text-align:left;padding:9px;border-bottom:1px solid #e1e5e8}th{background:#f5f7f8}
+
+.lightbox{position:fixed;inset:0;background:#000b;display:none;align-items:center;justify-content:center;z-index:100}.lightbox.open{display:flex}.lightbox img{max-width:92vw;max-height:92vh;object-fit:contain}.lightbox button{position:absolute;top:15px;right:20px;font-size:28px;background:#fff;border-radius:50%;width:45px;height:45px;padding:0}
+
+@media(max-width:900px){.grid.two,.grid.three,.quiz-card,.study-layout,.manage-layout{grid-template-columns:1fr}.species-sidebar{position:static;max-height:280px}.study-card{grid-template-columns:1fr}.image-wrap{min-height:300px}.topbar{height:auto;padding:12px;flex-wrap:wrap}.hero{flex-direction:column}.statbox{text-align:left}}
+
+
+/* Full-page flashcard editor */
+.editor-layout{display:grid;grid-template-columns:minmax(0,1.05fr) minmax(360px,.95fr);gap:20px;align-items:start}.editor-form{display:flex;flex-direction:column;gap:16px}.form-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px}.editor-form label{display:flex;flex-direction:column;gap:7px;font-weight:700}.editor-form textarea,.editor-form select{font:inherit;border:1px solid #c9d2dc;border-radius:10px;padding:12px;background:#fff;resize:vertical}.live-preview{position:sticky;top:20px}.preview-card{border:2px solid #cbd5df;border-radius:16px;background:#fff;padding:24px;box-shadow:0 8px 24px rgba(0,0,0,.07)}.preview-label{font-size:.76rem;font-weight:800;letter-spacing:.08em;color:#64748b}.preview-text{white-space:pre-wrap;min-height:90px;margin-top:8px;font-size:1.08rem;line-height:1.5}.preview-divider{height:1px;background:#dbe2e8;margin:22px 0}.preview-species{margin-top:20px;padding-top:14px;border-top:1px solid #e5e7eb;color:#64748b;font-size:.9rem}.editor-error{color:#b42318;min-height:20px}.muted{color:#64748b}@media(max-width:900px){.editor-layout{grid-template-columns:1fr}.live-preview{position:static}.form-grid{grid-template-columns:1fr}}
+.update-banner{position:fixed;right:18px;bottom:18px;z-index:50;background:#fff;border:1px solid #cbd5e1;border-radius:12px;padding:14px 16px;box-shadow:0 10px 30px rgba(0,0,0,.15);max-width:360px}.update-banner button{margin-top:8px}
