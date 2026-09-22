@@ -40,3 +40,11 @@ VERSION 1.8.7 — GOOGLE PHOTOS READY
 - The Google Photos Client ID is prefilled in Settings; it can still be changed there if needed.
 - Existing Google Photos import behavior is preserved: selected photos are copied into this browser's local Vault storage.
 - No Google password or client secret is stored in the site.
+
+
+VERSION 1.8.8 — GOOGLE PHOTOS PRIVACY WORDING
+- Renamed the import action to “Add from Google Photos.”
+- Added clear privacy guidance: search for the animal/species and select 1–2 images.
+- Clarified that only photos explicitly selected in the Google Photos Picker are imported into the Vault.
+- Updated Settings wording to distinguish the Google Photos Picker from importing the full gallery.
+- Preserves all 1.8.7 Google Photos functionality and existing user data/images.
