@@ -74,3 +74,33 @@ body.home-dark{background:#15191d;color:#edf2f5}
 
 .pending-images{display:flex;flex-wrap:wrap;gap:12px;margin:12px 0}.pending-image{width:150px}.pending-image img{width:100%;height:110px;object-fit:cover;border-radius:10px;border:1px solid var(--border)}.pending-image button{width:100%;margin-top:5px}.cloud-import-note{padding:12px;border:1px dashed var(--border);border-radius:10px;margin:12px 0}.upload-row{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
 .mask-editor-backdrop{position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,.72);display:flex;align-items:center;justify-content:center;padding:20px}.mask-editor-panel{width:min(1000px,96vw);max-height:94vh;overflow:auto;background:#fff;border-radius:14px;padding:18px;box-shadow:0 20px 60px rgba(0,0,0,.35)}.mask-editor-head{display:flex;justify-content:space-between;gap:20px;align-items:flex-start}.mask-editor-head h2{margin:0 0 5px}.mask-editor-head p{margin:0 0 12px;color:#66717c}.mask-editor-head>button{font-size:20px;background:transparent;border:0;cursor:pointer}.mask-editor-stage{position:relative;display:flex;align-items:center;justify-content:center;background:#111;border-radius:10px;overflow:hidden;max-height:65vh}.mask-editor-stage img{display:block;max-width:100%;max-height:65vh;width:auto;height:auto;user-select:none}.mask-box{position:absolute;box-sizing:border-box;border:3px solid #ff4d4d;background:rgba(255,77,77,.28);min-width:5%;min-height:5%;cursor:move;touch-action:none;display:flex;align-items:center;justify-content:center;color:#fff;font-size:12px;font-weight:700;text-shadow:0 1px 2px #000}.mask-resize{position:absolute;right:-7px;bottom:-7px;width:16px;height:16px;border:2px solid #fff;background:#ff4d4d;border-radius:50%;cursor:nwse-resize}.mask-editor-controls{display:flex;gap:18px;align-items:end;flex-wrap:wrap;margin:14px 0}.mask-editor-controls label{display:flex;flex-direction:column;gap:5px;min-width:220px}.mask-editor-controls output{font-size:12px;color:#66717c}.quiz-custom-mask{position:absolute;left:var(--quiz-mask-x);top:var(--quiz-mask-y);width:var(--quiz-mask-w);height:var(--quiz-mask-h);z-index:2;pointer-events:none;background:rgba(238,241,243,.28);backdrop-filter:blur(var(--quiz-mask-blur));-webkit-backdrop-filter:blur(var(--quiz-mask-blur))}.image-wrap.quiz-image-hide .quiz-custom-mask{backdrop-filter:none;-webkit-backdrop-filter:none;background:#eef1f3}.image-wrap.quiz-image-blur:has(.quiz-custom-mask)::after,.image-wrap.quiz-image-hide:has(.quiz-custom-mask)::after{display:none}.pending-image{display:flex;flex-direction:column;gap:5px}
+
+/* v1.8.3 Species Library landing page */
+.species-library-landing{display:grid;gap:18px}
+.library-hero{display:flex;align-items:center;justify-content:space-between;gap:20px;padding:24px}
+.library-hero h2{margin:.15rem 0 .4rem;font-size:clamp(1.6rem,3vw,2.2rem)}
+.eyebrow{margin:0;text-transform:uppercase;letter-spacing:.12em;font-size:.72rem;font-weight:800;opacity:.7}
+.library-toolbar{display:flex;align-items:center;justify-content:space-between;gap:14px;flex-wrap:wrap}
+.library-toolbar .search{flex:1;min-width:260px}
+.family-library-section{display:grid;gap:10px}
+.family-library-heading{display:flex;align-items:baseline;justify-content:space-between;gap:12px;border-bottom:1px solid var(--border,#d8dce3);padding:5px 4px 8px}
+.family-library-heading h3{margin:0;font-size:1.05rem;letter-spacing:.03em;text-transform:uppercase}
+.family-library-heading span{font-size:.82rem;opacity:.65}
+.species-card-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:12px}
+.species-library-card{appearance:none;border:1px solid var(--border,#d8dce3);background:var(--panel,#fff);border-radius:14px;padding:0;overflow:hidden;text-align:left;cursor:pointer;transition:transform .15s ease,box-shadow .15s ease,border-color .15s ease;color:inherit}
+.species-library-card:hover{transform:translateY(-2px);box-shadow:0 8px 22px rgba(0,0,0,.09);border-color:var(--accent,#777)}
+.species-library-thumb{height:145px;background:var(--surface,#f1f3f6);display:flex;align-items:center;justify-content:center;overflow:hidden}
+.species-library-thumb img{width:100%;height:100%;object-fit:cover;display:block}
+.species-library-thumb span{font-size:.72rem;letter-spacing:.08em;opacity:.45}
+.species-library-info{display:grid;gap:4px;padding:12px 13px 14px}
+.species-library-info strong{font-size:1rem}
+.species-library-info em{font-size:.86rem;opacity:.75}
+.manage-detail-page{display:grid;gap:10px}
+.detail-back-row{display:flex;justify-content:flex-start}
+.detail-back-row button{background:transparent;border:0;padding:4px 0;cursor:pointer;font-weight:700}
+@media(max-width:650px){.library-hero{align-items:flex-start;flex-direction:column}.species-card-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.species-library-thumb{height:115px}}
+@media(max-width:430px){.species-card-grid{grid-template-columns:1fr}}
+
+/* 1.8.3 fix: custom per-image quiz masks can override the global quiz label setting. */
+.image-wrap.quiz-image-custom::after{display:none!important}.quiz-custom-mask{box-sizing:border-box;border:2px solid rgba(255,77,77,.8)}
+.image-admin-meta{display:flex;flex-direction:column;gap:8px}.image-admin-meta>span{font-weight:600}.image-admin-meta button{width:100%}

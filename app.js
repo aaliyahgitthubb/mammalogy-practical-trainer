@@ -5,12 +5,12 @@ function currentSubject(){return SUBJECTS[state.subject]||SUBJECTS.mammalogy}
 function dbName(){return state.subject==='mammalogy'?'mammalogy-practical-db':`mammalogy-practical-${state.subject}-db`}
 function subjectKey(k){return state.subject==='mammalogy'?k:`${k}-${state.subject}`}
 const IMG_STORE='customImages', CARD_STORE='studyCards', INFO_STORE='speciesInfo', HOMEIMG_STORE='homeImages', SPECIES_STORE='customSpecies';
-const TAGS_KEY='mammalogy-tag-overrides', PROGRESS_KEY='mammalogy-progress', SETTINGS_KEY='mammalogy-settings', HOME_KEY='mammalogy-home-customization', FEATURES_KEY='mammalogy-feature-toggles', FAVORITES_KEY='mammalogy-favorites', HISTORY_KEY='mammalogy-study-history';
+const TAGS_KEY='mammalogy-tag-overrides', MASKS_KEY='mammalogy-quiz-masks', PROGRESS_KEY='mammalogy-progress', SETTINGS_KEY='mammalogy-settings', HOME_KEY='mammalogy-home-customization', FEATURES_KEY='mammalogy-feature-toggles', FAVORITES_KEY='mammalogy-favorites', HISTORY_KEY='mammalogy-study-history';
 
 const state={
   subject:'mammalogy', screen:'home', mode:'full', length:20, current:null, answered:false, editor:null,
   session:{q:0,correct:0,points:0,totalPoints:0}, lastSpecies:null, focusMissed:false,
-  customImages:[], customSpecies:[], pendingSpeciesImages:[], tagOverrides:{}, cards:[], speciesInfo:{}, homeImages:[], homeConfig:null,
+  customImages:[], customSpecies:[], pendingSpeciesImages:[], tagOverrides:{}, maskOverrides:{}, cards:[], speciesInfo:{}, homeImages:[], homeConfig:null,
   maskEditor:null, selectedSpeciesId:null, studyMode:'browse', studyIndex:0, studyFlipped:false, studyTagFilter:'', sessionPlan:null, mystery:false, features:null, favorites:[]
 };
 function speciesList(){const source=(state.subject==='mammalogy'&&typeof SOURCE_SPECIES!=='undefined'&&Array.isArray(SOURCE_SPECIES))?SOURCE_SPECIES:[];return [...source,...state.customSpecies]}
@@ -43,6 +43,8 @@ function loadSettings(){try{return JSON.parse(localStorage.getItem(subjectKey(SE
 function saveSettings(s){localStorage.setItem(subjectKey(SETTINGS_KEY),JSON.stringify(s))}
 function loadTags(){try{state.tagOverrides=JSON.parse(localStorage.getItem(subjectKey(TAGS_KEY))||'{}')}catch{state.tagOverrides={}}}
 function saveTags(){localStorage.setItem(subjectKey(TAGS_KEY),JSON.stringify(state.tagOverrides))}
+function loadMasks(){try{state.maskOverrides=JSON.parse(localStorage.getItem(subjectKey(MASKS_KEY))||'{}')}catch{state.maskOverrides={}}}
+function saveMasks(){localStorage.setItem(subjectKey(MASKS_KEY),JSON.stringify(state.maskOverrides))}
 
 function openDb(){
   return new Promise((res,rej)=>{
@@ -92,7 +94,7 @@ async function refreshStudyData(){
 }
 
 function allImages(s){return[
-  ...s.images.map((im,i)=>({id:`source:${s.id}:${i}`,speciesId:s.id,file:im.file,data:((typeof SOURCE_IMAGE_DATA!=='undefined'&&SOURCE_IMAGE_DATA&&SOURCE_IMAGE_DATA[im.file])||`images/${im.file}`),viewTypes:state.tagOverrides[`source:${s.id}:${i}`]||im.viewTypes||['mixed'],custom:false})),
+  ...s.images.map((im,i)=>({id:`source:${s.id}:${i}`,speciesId:s.id,file:im.file,data:((typeof SOURCE_IMAGE_DATA!=='undefined'&&SOURCE_IMAGE_DATA&&SOURCE_IMAGE_DATA[im.file])||`images/${im.file}`),viewTypes:state.tagOverrides[`source:${s.id}:${i}`]||im.viewTypes||['mixed'],quizMask:state.maskOverrides[`source:${s.id}:${i}`]||null,custom:false})),
   ...state.customImages.filter(x=>x.speciesId===s.id).map(x=>({...x,custom:true,data:x.dataUrl}))
 ]}
 function eligible(s,filter){const a=allImages(s);return filter==='all'?a:a.filter(x=>(x.viewTypes||[]).includes(filter))}
@@ -113,6 +115,7 @@ function pickQuestion(){
   for(let i=0;i<30;i++){const s=weightedSpecies(),a=eligible(s,filter);if(a.length){state.lastSpecies=s;return{species:s,image:a[Math.floor(Math.random()*a.length)]}}}
   return null
 }
+function openManageLibrary(){state.selectedSpeciesId=null;setScreen('manage')}
 function setScreen(x){
   state.screen=x;
   try{render()}
@@ -182,7 +185,7 @@ function render(){
 function shell(title,body){
   return `<div class="shell">
     <header class="topbar ${state.screen==='home'?'home-topbar':''}"><button class="brand" onclick="setScreen('hub')">${currentSubject().icon} ${subjectTitle()}</button>
-    <nav><button onclick="setScreen('hub')">Classes</button><button onclick="setScreen('home')">Home</button><button onclick="setScreen('study')">${subjectTitle()}</button><button onclick="setScreen('manage')">Images</button><button onclick="setScreen('progress')">Progress</button><button onclick="setScreen('settings')">⚙ Settings</button></nav></header>
+    <nav><button onclick="setScreen('hub')">Classes</button><button onclick="setScreen('home')">Home</button><button onclick="setScreen('study')">${subjectTitle()}</button><button onclick="openManageLibrary()">Images</button><button onclick="setScreen('progress')">Progress</button><button onclick="setScreen('settings')">⚙ Settings</button></nav></header>
     <section class="content"><div class="page-title"><h1>${title}</h1></div>${body}</section>
   </div>`
 }
@@ -198,7 +201,7 @@ function renderHub(app){
   const cards=Object.entries(SUBJECTS).map(([id,x])=>`<section class="panel subject-card"><div class="subject-icon">${x.icon}</div><h2>${esc(x.name)}</h2><p>${esc(x.description)}</p><button class="primary" onclick="switchSubject('${id}')">${id===state.subject?'Open':'Open'} ${esc(x.vault)}</button>${id!=='mammalogy'?'<small class="muted">Starts as a separate empty workspace. Add your species, images, and study cards when the class begins.</small>':''}</section>`).join('');
   app.innerHTML=shell('Class Trainer Hub',`<div class="hub-intro panel"><h2>One trainer for all your identification classes</h2><p>Keep Mammalogy, Ornithology, and Herpetology in separate workspaces while using the same practical, image, study-card, progress, and species-management tools.</p></div><div class="subject-grid">${cards}</div>`);
 }
-async function switchSubject(id){if(!SUBJECTS[id])return;state.subject=id;state.screen='home';state.current=null;state.sessionPlan=null;state.selectedSpeciesId=null;state.customImages=[];state.customSpecies=[];state.cards=[];state.speciesInfo={};state.homeImages=[];state.homeConfig=null;state.features=null;state.favorites=[];loadTags();state.features=loadFeatures();state.favorites=loadFavorites();await refreshStudyData();state.selectedSpeciesId=speciesList()[0]?.id;render()}
+async function switchSubject(id){if(!SUBJECTS[id])return;state.subject=id;state.screen='home';state.current=null;state.sessionPlan=null;state.selectedSpeciesId=null;state.customImages=[];state.customSpecies=[];state.cards=[];state.speciesInfo={};state.homeImages=[];state.homeConfig=null;state.features=null;state.maskOverrides={};state.favorites=[];loadTags();loadMasks();state.features=loadFeatures();state.favorites=loadFavorites();await refreshStudyData();state.selectedSpeciesId=speciesList()[0]?.id;render()}
 function renderHome(app){
   const st=progressStats(),c=state.homeConfig||loadHomeConfig();state.homeConfig=c;applyHomeTheme();
   const access=[];
@@ -244,14 +247,15 @@ async function importGooglePhotosToSpecies(){const sp=selectedSpecies();if(!sp){
 
 function renderQuiz(app){
   const c=state.current,s=c?.species,i=c?.image;
-  if(!s||!i){app.innerHTML=shell(`${subjectTitle()} Practical`,`<div class="panel empty-workspace"><h2>No usable specimen images yet.</h2><p>Add at least one image to a species before starting an image practical.</p><div class="button-row"><button class="primary" onclick="setScreen('manage')">Manage Images</button><button onclick="setScreen('home')">Home</button></div></div>`);return}
+  if(!s||!i){app.innerHTML=shell(`${subjectTitle()} Practical`,`<div class="panel empty-workspace"><h2>No usable specimen images yet.</h2><p>Add at least one image to a species before starting an image practical.</p><div class="button-row"><button class="primary" onclick="openManageLibrary()">Manage Images</button><button onclick="setScreen('home')">Home</button></div></div>`);return}
   const pct=Math.round((state.session.q/state.length)*100);
   const disabled=state.answered?'disabled':'';
   const imageSrc=i.data;
   const qs=loadSettings();
   const labelMode=qs.quizImageLabels||'blur';
   const maskHeight=Math.max(10,Math.min(40,Number(qs.quizLabelMaskHeight||24)));
-  const imageClass=`quiz-image-${labelMode}`;
+  const hasCustomMask=!!i.quizMask;
+  const imageClass=hasCustomMask?'quiz-image-custom':`quiz-image-${labelMode}`;
   const result=state.answered?`
     <div class="answer-result ${(() => {
       const sc=normalizeSci($('scientificInput')?.value||'')===normalizeSci(s.scientific);
@@ -268,7 +272,7 @@ function renderQuiz(app){
   app.innerHTML=shell(`${state.mystery?'Mystery Specimen':modeLabel()} — Question ${state.session.q} of ${state.length}`,`
     <div class="progressbar"><span style="width:${pct}%"></span></div>
     <div class="quiz-card">
-      <div class="image-wrap ${imageClass}" style="--quiz-mask-height:${maskHeight}%;--quiz-mask-x:${i.quizMask?.x??0}%;--quiz-mask-y:${i.quizMask?.y??(100-maskHeight)}%;--quiz-mask-w:${i.quizMask?.w??100}%;--quiz-mask-h:${i.quizMask?.h??maskHeight}%;--quiz-mask-blur:${i.quizMask?.blur??14}px"><img src="${esc(imageSrc)}" alt="${esc(s.common)} specimen" ${labelMode==='show'?`onclick="openLightbox('${esc(imageSrc)}')"`:''}>${labelMode!=='show'&&i.quizMask?'<div class="quiz-custom-mask"></div>':''}</div>
+      <div class="image-wrap ${imageClass}" style="--quiz-mask-height:${maskHeight}%;--quiz-mask-x:${i.quizMask?.x??0}%;--quiz-mask-y:${i.quizMask?.y??(100-maskHeight)}%;--quiz-mask-w:${i.quizMask?.w??100}%;--quiz-mask-h:${i.quizMask?.h??maskHeight}%;--quiz-mask-blur:${i.quizMask?.blur??14}px"><img src="${esc(imageSrc)}" alt="${esc(s.common)} specimen" ${labelMode==='show'?`onclick="openLightbox('${esc(imageSrc)}')"`:''}>${i.quizMask?'<div class="quiz-custom-mask"></div>':''}</div>
       <div class="quiz-side">
         <div class="image-meta">${i.custom?'Your added image':'Course image'} · ${(i.viewTypes||['mixed']).join(', ')}</div>
         ${state.mode!=='family'?`<label>Scientific name<input id="scientificInput" ${disabled} autocomplete="off" spellcheck="false" placeholder="Genus species"></label>`:''}
@@ -313,8 +317,8 @@ function renderStudy(app){
     <div class="study-layout">
       <aside class="species-sidebar"><input class="search" id="speciesSearch" placeholder="Search species..." oninput="filterSpeciesList()"><div id="speciesList">${list}</div></aside>
       <section class="study-main">
-        <div class="species-heading"><div><h2>${esc(s.common)} ${state.favorites.includes(s.id)?'⭐':''}</h2><p>${sciHtml(s.scientific)} · ${s.family?esc(s.family):'Family not specified'}</p><div class="mastery-ring" style="--p:${masteryPercent(s.id)}%"><span>${masteryPercent(s.id)}%</span></div></div><div class="button-row"><button onclick="openStudyNewCard()">+ Add Card</button><button onclick="toggleFavorite('${s.id}')">${state.favorites.includes(s.id)?'★ Unfavorite':'☆ Favorite'}</button><button onclick="editSpeciesInfo()">Edit Notes / Clues</button><button onclick="setScreen('manage')">Manage Images</button><button onclick="setScreen('addSpecies')">+ Add Species</button></div></div>
-        ${featureOn('galleries')?`<div class="species-gallery panel"><div class="gallery-head"><h3>🖼️ Specimen Gallery</h3><button onclick="setScreen('manage')">Manage Images</button></div><div class="vault-gallery">${allImages(s).slice(0,6).map(i=>`<img src="${esc(i.data)}" alt="${esc(s.common)}" onclick="openLightbox('${esc(i.data)}')">`).join('')}</div>${allImages(s).length?`<small>${allImages(s).length} image${allImages(s).length===1?'':'s'} in this species collection.</small>`:'<p class="muted">Add specimen images in Images.</p>'}</div>`:''}<div class="study-tabs"><button class="${state.studyMode==='browse'?'active':''}" onclick="state.studyMode='browse';render()">Browse Cards</button><button class="${state.studyMode==='flash'?'active':''}" onclick="state.studyMode='flash';state.studyIndex=0;state.studyFlipped=false;render()">Flashcard Mode</button></div>
+        <div class="species-heading"><div><h2>${esc(s.common)} ${state.favorites.includes(s.id)?'⭐':''}</h2><p>${sciHtml(s.scientific)} · ${s.family?esc(s.family):'Family not specified'}</p><div class="mastery-ring" style="--p:${masteryPercent(s.id)}%"><span>${masteryPercent(s.id)}%</span></div></div><div class="button-row"><button onclick="openStudyNewCard()">+ Add Card</button><button onclick="toggleFavorite('${s.id}')">${state.favorites.includes(s.id)?'★ Unfavorite':'☆ Favorite'}</button><button onclick="editSpeciesInfo()">Edit Notes / Clues</button><button onclick="openManageLibrary()">Manage Images</button><button onclick="setScreen('addSpecies')">+ Add Species</button></div></div>
+        ${featureOn('galleries')?`<div class="species-gallery panel"><div class="gallery-head"><h3>🖼️ Specimen Gallery</h3><button onclick="openManageLibrary()">Manage Images</button></div><div class="vault-gallery">${allImages(s).slice(0,6).map(i=>`<img src="${esc(i.data)}" alt="${esc(s.common)}" onclick="openLightbox('${esc(i.data)}')">`).join('')}</div>${allImages(s).length?`<small>${allImages(s).length} image${allImages(s).length===1?'':'s'} in this species collection.</small>`:'<p class="muted">Add specimen images in Images.</p>'}</div>`:''}<div class="study-tabs"><button class="${state.studyMode==='browse'?'active':''}" onclick="state.studyMode='browse';render()">Browse Cards</button><button class="${state.studyMode==='flash'?'active':''}" onclick="state.studyMode='flash';state.studyIndex=0;state.studyFlipped=false;render()">Flashcard Mode</button></div>
         ${info.notes?`<div class="notes panel"><h3>My Species Notes</h3><div>${esc(info.notes).replace(/\n/g,'<br>')}</div></div>`:''}${info.clues&&featureOn('clues')?`<div class="notes panel clue-panel"><h3>🔎 My Identification Clues</h3><div>${esc(info.clues).replace(/\n/g,'<br>')}</div></div>`:''}
         <div class="cards-header"><h3>${state.studyMode==='flash'?'Flashcards':'Study Cards'} <span>${filteredCards.length}${activeTag?` / ${cards.length}`:''}</span></h3><div class="filter-row"><label>Filter by tag<select id="studyTagFilter" onchange="state.studyTagFilter=this.value;state.studyIndex=0;state.studyFlipped=false;render()"><option value="">All tags</option>${[...new Set(state.cards.flatMap(x=>x.tags||[]))].sort().map(t=>`<option value="${esc(t)}" ${t===activeTag?'selected':''}>${esc(t)}</option>`).join('')}</select></label>${state.studyMode==='flash'&&filteredCards.length?`<button onclick="shuffleStudyCards()">Shuffle</button>`:''}</div></div>
         ${cardPanel}
@@ -438,22 +442,34 @@ function updateCardPreview(){
   const pt=$('previewTags');if(pt)pt.innerHTML=selectedEditorTags().map(t=>`<span class="tag secondary">${esc(t)}</span>`).join('');
 }
 function renderManage(app){
-  if(!speciesList().length){app.innerHTML=shell('Manage Species & Images',`<div class="panel empty-workspace"><h2>No species yet</h2><p>Add your first ${esc(currentSubject().name.toLowerCase())} species to begin building the image collection.</p><button class="primary" onclick="setScreen('addSpecies')">+ Add First Species</button></div>`);return}
-  if(!state.selectedSpeciesId)state.selectedSpeciesId=speciesList()[0].id;
+  const species=speciesList();
+  if(!species.length){app.innerHTML=shell('Manage Species & Images',`<div class="species-library-landing"><div class="library-hero panel"><div><p class="eyebrow">${esc(subjectTitle())}</p><h2>Species Library</h2><p class="muted">Organize your collection by family, then open a species to manage its images, notes, and quiz settings.</p></div><button class="primary" onclick="setScreen('addSpecies')">+ Add Species</button></div><div class="panel empty-workspace"><h3>Your library is empty</h3><p>Add your first species and its images to begin building this ${esc(currentSubject().name.toLowerCase())} collection.</p></div></div>`);return}
+  if(!state.selectedSpeciesId){
+    const groups={};
+    species.slice().sort((a,b)=>(a.family||'Unclassified').localeCompare(b.family||'Unclassified')||a.common.localeCompare(b.common)).forEach(x=>{const family=x.family?.trim()||'Unclassified';(groups[family]??=[]).push(x)});
+    const families=Object.keys(groups).sort((a,b)=>a.localeCompare(b));
+    const sections=families.map(f=>`<section class="family-library-section"><div class="family-library-heading"><h3>${esc(f)}</h3><span>${groups[f].length} species</span></div><div class="species-card-grid">${groups[f].map(x=>{const img=allImages(x)[0];return `<button class="species-library-card" onclick="setStudySpecies('${x.id}');render()"><div class="species-library-thumb">${img?`<img src="${esc(img.data)}" alt="">`:'<span>NO IMAGE</span>'}</div><div class="species-library-info"><strong>${esc(x.common)}</strong><em>${sciHtml(x.scientific)}</em></div></button>`}).join('')}</div></section>`).join('');
+    app.innerHTML=shell('Manage Species & Images',`<div class="species-library-landing"><div class="library-hero panel"><div><p class="eyebrow">${esc(subjectTitle())}</p><h2>Species Library</h2><p class="muted">Choose a species to view or edit its images and information.</p></div><button class="primary" onclick="setScreen('addSpecies')">+ Add Species</button></div><div class="library-toolbar"><input class="search" id="speciesLibrarySearch" placeholder="Search common or scientific name..." oninput="filterSpeciesLibrary()"><span class="muted">${species.length} species · ${families.length} families</span></div><div id="speciesLibraryGroups">${sections}</div></div>`);return;
+  }
   const s=selectedSpecies(),imgs=allImages(s);
-  const list=speciesList().map(x=>`<button class="species-list-btn ${x.id===s.id?'selected':''}" onclick="setStudySpecies('${x.id}');render()">${esc(x.common)}<small>${sciHtml(x.scientific)}</small></button>`).join('');
   app.innerHTML=shell('Manage Species & Images',`
-    <div class="manage-layout">
-      <aside class="species-sidebar"><input class="search" placeholder="Search species..." oninput="filterSpeciesList()"><div>${list}</div></aside>
+    <div class="manage-detail-page">
+      <div class="detail-back-row"><button onclick="state.selectedSpeciesId=null;render()">← Back to Species Library</button></div>
       <section class="study-main">
-        <div class="species-heading"><div><h2>${esc(s.common)}</h2><p>${sciHtml(s.scientific)} · ${esc(s.family)}</p></div><div class="button-row"><button onclick="setScreen('study')">Study this species</button><button onclick="setScreen('addSpecies')">+ Add Species</button></div></div>
+        <div class="species-heading"><div><h2>${esc(s.common)}</h2><p>${sciHtml(s.scientific)} · ${esc(s.family||'Unclassified')}</p></div><div class="button-row"><button onclick="setScreen('study')">Study this species</button></div></div>
         <div class="paste-box" id="pasteBox" tabindex="0"><strong>Paste an image here</strong><span>Copy an image anywhere, then click here and press <b>Ctrl + V</b>.</span></div>
         <div class="upload-row"><label class="file-button">Add image files<input id="imageFiles" type="file" accept="image/*" multiple onchange="handleFiles(this.files)"></label><button type="button" onclick="importGooglePhotosToSpecies()">☁ Import from Google Photos</button><select id="newImageType"><option value="mixed">Mixed / Other</option><option value="skull">Skull / Teeth</option><option value="skin">Skin / Whole</option></select></div>
-        <div class="image-grid">${imgs.map(i=>`<div class="image-admin"><img src="${esc(i.data)}" onclick="openLightbox('${esc(i.data)}')"><div class="image-admin-meta">${i.custom?'Your image':'Course image'}<select onchange="setImageTag('${esc(i.id)}',this.value)"><option value="mixed" ${(i.viewTypes||[]).includes('mixed')?'selected':''}>Mixed / Other</option><option value="skull" ${(i.viewTypes||[]).includes('skull')?'selected':''}>Skull / Teeth</option><option value="skin" ${(i.viewTypes||[]).includes('skin')?'selected':''}>Skin / Whole</option></select>${i.custom?`<button onclick="openImageMaskEditor('${esc(i.id)}')">${i.quizMask?'Edit quiz text area':'Set quiz text area'}</button><button class="danger" onclick="removeCustomImage('${esc(i.id)}')">Delete</button>`:''}</div></div>`).join('')}</div>
+        <div class="image-grid">${imgs.map(i=>`<div class="image-admin"><img src="${esc(i.data)}" onclick="openLightbox('${esc(i.data)}')"><div class="image-admin-meta"><span>${i.custom?'Your image':'Course image'}</span><select onchange="setImageTag('${esc(i.id)}',this.value)"><option value="mixed" ${(i.viewTypes||[]).includes('mixed')?'selected':''}>Mixed / Other</option><option value="skull" ${(i.viewTypes||[]).includes('skull')?'selected':''}>Skull / Teeth</option><option value="skin" ${(i.viewTypes||[]).includes('skin')?'selected':''}>Skin / Whole</option></select><button type="button" onclick="openImageMaskEditor('${esc(i.id)}')">${i.quizMask?'Edit quiz text area':'Set quiz text area'}</button>${i.quizMask?`<button type="button" onclick="clearImageMask('${esc(i.id)}')">Clear quiz mask</button>`:''}${i.custom?`<button class="danger" onclick="removeCustomImage('${esc(i.id)}')">Delete</button>`:''}</div></div>`).join('')}</div>
       </section>
     </div>
   `);
   setTimeout(()=>{$('pasteBox')?.focus();$('pasteBox')?.addEventListener('paste',handlePaste)},0)
+}
+function filterSpeciesLibrary(){
+  const q=($('speciesLibrarySearch')?.value||'').trim().toLowerCase();
+  document.querySelectorAll('.family-library-section').forEach(section=>{
+    let visible=0;section.querySelectorAll('.species-library-card').forEach(card=>{const show=!q||card.textContent.toLowerCase().includes(q);card.style.display=show?'':'none';if(show)visible++});section.style.display=visible?'':'none';
+  });
 }
 function currentImageType(){return $('newImageType')?.value||'mixed'}
 async function handlePaste(e){
@@ -482,7 +498,9 @@ function openMaskEditor(src,initial,onSave,title='Set quiz text area'){
 }
 function closeImageMaskEditor(){document.getElementById('imageMaskEditor')?.remove()}
 function openPendingSpeciesMaskEditor(index){const x=state.pendingSpeciesImages[index];if(!x)return;openMaskEditor(x.dataUrl,x.quizMask,(mask)=>{x.quizMask=mask;renderAddSpecies($('app'))},'Set quiz text area for this new image')}
-async function openImageMaskEditor(id){const im=state.customImages.find(x=>x.id===id);if(!im)return;openMaskEditor(im.dataUrl,im.quizMask,(mask)=>{im.quizMask=mask;dbPut(IMG_STORE,im).then(refreshStudyData).then(render)},'Set quiz text area for this image')}
+async function openImageMaskEditor(id){const im=state.customImages.find(x=>x.id===id);const course=imgsForSelectedSpecies().find(x=>x.id===id);const target=im||course;if(!target)return;openMaskEditor(target.dataUrl||target.data,target.quizMask,(mask)=>{if(target.custom){target.quizMask=mask;dbPut(IMG_STORE,target).then(refreshStudyData).then(render)}else{state.maskOverrides[id]=mask;saveMasks();render()}},'Set quiz text area for this image')}
+function imgsForSelectedSpecies(){const s=selectedSpecies();return s?allImages(s):[]}
+async function clearImageMask(id){const im=state.customImages.find(x=>x.id===id);if(im){im.quizMask=null;await dbPut(IMG_STORE,im)}else{delete state.maskOverrides[id];saveMasks()}await refreshStudyData();render()}
 async function saveImageFile(file,viewType){
   if(!file.type.startsWith('image/'))return;
   const dataUrl=await new Promise((res,rej)=>{const r=new FileReader();r.onload=()=>res(r.result);r.onerror=rej;r.readAsDataURL(file)});
@@ -527,7 +545,7 @@ async function blobToDataUrl(blob){return await new Promise((res,rej)=>{const r=
 async function exportBackup(){
   const images=state.customImages.map(x=>({id:x.id,speciesId:x.speciesId,name:x.name,dataUrl:x.dataUrl,viewTypes:x.viewTypes,createdAt:x.createdAt}));
   const homeImages=state.homeImages.map(x=>({id:x.id,name:x.name,dataUrl:x.dataUrl}));
-  const backup={version:4,createdAt:new Date().toISOString(),customImages:images,studyCards:state.cards,speciesInfo:state.speciesInfo,customSpecies:state.customSpecies,tagOverrides:state.tagOverrides,progress:loadProgress(),settings:loadSettings(),features:state.features||loadFeatures(),favorites:state.favorites,history:loadHistory(),homeConfig:state.homeConfig||loadHomeConfig(),homeImages};
+  const backup={version:5,createdAt:new Date().toISOString(),customImages:images,quizMaskOverrides:state.maskOverrides,studyCards:state.cards,speciesInfo:state.speciesInfo,customSpecies:state.customSpecies,tagOverrides:state.tagOverrides,progress:loadProgress(),settings:loadSettings(),features:state.features||loadFeatures(),favorites:state.favorites,history:loadHistory(),homeConfig:state.homeConfig||loadHomeConfig(),homeImages};
   const blob=new Blob([JSON.stringify(backup)],{type:'application/json'}),url=URL.createObjectURL(blob);
   const a=document.createElement('a');a.href=url;a.download='mammalogy-trainer-backup.json';a.click();URL.revokeObjectURL(url)
 }
@@ -544,12 +562,13 @@ async function importBackup(file){
     if(b.homeConfig)localStorage.setItem(subjectKey(HOME_KEY),JSON.stringify(b.homeConfig));
     for(const [id,obj] of Object.entries(b.speciesInfo||{}))await dbPut(INFO_STORE,{speciesId:id,notes:obj.notes||''});
     if(b.tagOverrides)localStorage.setItem(subjectKey(TAGS_KEY),JSON.stringify(b.tagOverrides));
+    if(b.quizMaskOverrides)localStorage.setItem(subjectKey(MASKS_KEY),JSON.stringify(b.quizMaskOverrides));
     if(b.progress)localStorage.setItem(subjectKey(PROGRESS_KEY),JSON.stringify(b.progress));
     if(b.settings)localStorage.setItem(subjectKey(SETTINGS_KEY),JSON.stringify(b.settings));
     if(b.features)localStorage.setItem(subjectKey(FEATURES_KEY),JSON.stringify(b.features));
     if(b.favorites)localStorage.setItem(subjectKey(FAVORITES_KEY),JSON.stringify(b.favorites));
     if(b.history)localStorage.setItem(subjectKey(HISTORY_KEY),JSON.stringify(b.history));
-    await refreshStudyData();loadTags();alert('Backup imported successfully.');render()
+    await refreshStudyData();loadTags();loadMasks();alert('Backup imported successfully.');render()
   }catch(e){alert('Could not import that backup.')}
 }
 
@@ -562,10 +581,10 @@ Object.assign(window,{
   openStudySpecies,setStudySpecies,studyNext,studyPrev,shuffleStudyCards,
   openStudyNewCard,openStudyEditCard,submitCardEditor,cancelCardEditor,
   saveCard,editCard,deleteCard,editSpeciesInfo,
-  handlePaste,handleFiles,saveImageFile,removeCustomImage,setImageTag,openPendingSpeciesMaskEditor,openImageMaskEditor,closeImageMaskEditor,handleNewSpeciesFiles,removePendingSpeciesImage,importGooglePhotosToSpecies,saveGooglePhotosSettings,
+  handlePaste,handleFiles,saveImageFile,removeCustomImage,setImageTag,openPendingSpeciesMaskEditor,openImageMaskEditor,clearImageMask,closeImageMaskEditor,handleNewSpeciesFiles,removePendingSpeciesImage,importGooglePhotosToSpecies,saveGooglePhotosSettings,
   toggleFavorite,openLightbox,closeLightbox,
   enableAllFeatures,disableOptionalFeatures,setFeature,
-  addSpeciesFromForm,resetProgress,exportBackup,triggerImportBackup,importBackup,
+  addSpeciesFromForm,filterSpeciesLibrary,openManageLibrary,resetProgress,exportBackup,triggerImportBackup,importBackup,
   changeTheme,resetHomeCustomization,addHomeBlock,removeHomeBlock,updateHomeBlock,
   handleHomeImages,setHomeBackground,clearHomeBackground,deleteHomeImage,
   saveQuizSetting,toggleCustomCategory,addEditorTag,removeEditorTag,
