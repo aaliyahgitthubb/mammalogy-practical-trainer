@@ -26,3 +26,9 @@ Do NOT delete data.js, embedded_images.js, or the images folder.
 - Updated service-worker cache so GitHub Pages loads the corrected version.
 
 Previous 1.8.3 functionality is preserved, including the Species Library landing page, family grouping, per-image quiz masks, Google Photos import, and image management.
+
+
+VERSION 1.8.6
+- Reduced image-library thumbnail/card size for a more compact species image management view.
+- Reduced species-library thumbnails and gallery image heights.
+- Full-size image viewing remains available through the lightbox.
