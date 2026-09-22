@@ -5,13 +5,13 @@ function currentSubject(){return SUBJECTS[state.subject]||SUBJECTS.mammalogy}
 function dbName(){return state.subject==='mammalogy'?'mammalogy-practical-db':`mammalogy-practical-${state.subject}-db`}
 function subjectKey(k){return state.subject==='mammalogy'?k:`${k}-${state.subject}`}
 const IMG_STORE='customImages', CARD_STORE='studyCards', INFO_STORE='speciesInfo', HOMEIMG_STORE='homeImages', SPECIES_STORE='customSpecies';
-const TAGS_KEY='mammalogy-tag-overrides', MASKS_KEY='mammalogy-quiz-masks', PROGRESS_KEY='mammalogy-progress', SETTINGS_KEY='mammalogy-settings', HOME_KEY='mammalogy-home-customization', FEATURES_KEY='mammalogy-feature-toggles', FAVORITES_KEY='mammalogy-favorites', HISTORY_KEY='mammalogy-study-history';
+const TAGS_KEY='mammalogy-tag-overrides', MASKS_KEY='mammalogy-quiz-masks', EDITS_KEY='mammalogy-image-edits', PROGRESS_KEY='mammalogy-progress', SETTINGS_KEY='mammalogy-settings', HOME_KEY='mammalogy-home-customization', FEATURES_KEY='mammalogy-feature-toggles', FAVORITES_KEY='mammalogy-favorites', HISTORY_KEY='mammalogy-study-history';
 
 const state={
   subject:'mammalogy', screen:'home', mode:'full', length:20, current:null, answered:false, editor:null,
   session:{q:0,correct:0,points:0,totalPoints:0}, lastSpecies:null, focusMissed:false,
-  customImages:[], customSpecies:[], pendingSpeciesImages:[], tagOverrides:{}, maskOverrides:{}, cards:[], speciesInfo:{}, homeImages:[], homeConfig:null,
-  maskEditor:null, selectedSpeciesId:null, studyMode:'browse', studyIndex:0, studyFlipped:false, studyTagFilter:'', sessionPlan:null, mystery:false, features:null, favorites:[]
+  customImages:[], customSpecies:[], pendingSpeciesImages:[], tagOverrides:{}, maskOverrides:{}, imageEdits:{}, cards:[], speciesInfo:{}, homeImages:[], homeConfig:null,
+  maskEditor:null, pendingSpeciesForm:{common:'',scientific:'',family:'',notes:'',clues:''}, selectedSpeciesId:null, studyMode:'browse', studyIndex:0, studyFlipped:false, studyTagFilter:'', sessionPlan:null, mystery:false, features:null, favorites:[]
 };
 function speciesList(){const source=(state.subject==='mammalogy'&&typeof SOURCE_SPECIES!=='undefined'&&Array.isArray(SOURCE_SPECIES))?SOURCE_SPECIES:[];return [...source,...state.customSpecies]}
 function featureDefaults(){return {collection:true,badges:true,streak:true,daily:true,surprise:true,galleries:true,mystery:true,trouble:true,smartReview:true,sessionResults:true,xp:true,themes:true,journal:true,studyThis:true,mastery:true,recent:true,favorites:true,stats:true,history:true,clues:true,studyBuilder:true}}
@@ -45,6 +45,8 @@ function loadTags(){try{state.tagOverrides=JSON.parse(localStorage.getItem(subje
 function saveTags(){localStorage.setItem(subjectKey(TAGS_KEY),JSON.stringify(state.tagOverrides))}
 function loadMasks(){try{state.maskOverrides=JSON.parse(localStorage.getItem(subjectKey(MASKS_KEY))||'{}')}catch{state.maskOverrides={}}}
 function saveMasks(){localStorage.setItem(subjectKey(MASKS_KEY),JSON.stringify(state.maskOverrides))}
+function loadImageEdits(){try{state.imageEdits=JSON.parse(localStorage.getItem(subjectKey(EDITS_KEY))||'{}')}catch{state.imageEdits={}}}
+function saveImageEdits(){localStorage.setItem(subjectKey(EDITS_KEY),JSON.stringify(state.imageEdits))}
 
 function openDb(){
   return new Promise((res,rej)=>{
@@ -89,13 +91,13 @@ async function refreshStudyData(){
   state.speciesInfo={}; infos.forEach(x=>state.speciesInfo[x.speciesId]=x);
   state.homeImages=await dbAll(HOMEIMG_STORE);
   state.customSpecies=await dbAll(SPECIES_STORE);
-  state.features=loadFeatures(); state.favorites=loadFavorites();
+  state.features=loadFeatures(); state.favorites=loadFavorites(); loadImageEdits();
   state.homeConfig=loadHomeConfig();
 }
 
 function allImages(s){return[
-  ...s.images.map((im,i)=>({id:`source:${s.id}:${i}`,speciesId:s.id,file:im.file,data:((typeof SOURCE_IMAGE_DATA!=='undefined'&&SOURCE_IMAGE_DATA&&SOURCE_IMAGE_DATA[im.file])||`images/${im.file}`),viewTypes:state.tagOverrides[`source:${s.id}:${i}`]||im.viewTypes||['mixed'],quizMask:state.maskOverrides[`source:${s.id}:${i}`]||null,custom:false})),
-  ...state.customImages.filter(x=>x.speciesId===s.id).map(x=>({...x,custom:true,data:x.dataUrl}))
+  ...s.images.map((im,i)=>{const id=`source:${s.id}:${i}`,base=((typeof SOURCE_IMAGE_DATA!=='undefined'&&SOURCE_IMAGE_DATA&&SOURCE_IMAGE_DATA[im.file])||`images/${im.file}`);return{id,speciesId:s.id,file:im.file,data:state.imageEdits[id]?.dataUrl||base,originalData:base,viewTypes:state.tagOverrides[id]||im.viewTypes||['mixed'],quizMask:state.maskOverrides[id]||null,custom:false,edited:!!state.imageEdits[id]}}),
+  ...state.customImages.filter(x=>x.speciesId===s.id).map(x=>({...x,custom:true,data:x.editedDataUrl||x.dataUrl,originalData:x.dataUrl,edited:!!x.editedDataUrl}))
 ]}
 function eligible(s,filter){const a=allImages(s);return filter==='all'?a:a.filter(x=>(x.viewTypes||[]).includes(filter))}
 function modeLabel(){return({full:'Full Practical',scientific:'Scientific Name',family:'Family',skull:'Skull / Teeth Focus',skin:'Skin / Whole Focus'})[state.mode]}
@@ -459,7 +461,7 @@ function renderManage(app){
         <div class="species-heading"><div><h2>${esc(s.common)}</h2><p>${sciHtml(s.scientific)} · ${esc(s.family||'Unclassified')}</p></div><div class="button-row"><button onclick="setScreen('study')">Study this species</button></div></div>
         <div class="paste-box" id="pasteBox" tabindex="0"><strong>Paste an image here</strong><span>Copy an image anywhere, then click here and press <b>Ctrl + V</b>.</span></div>
         <div class="upload-row"><label class="file-button">Add image files<input id="imageFiles" type="file" accept="image/*" multiple onchange="handleFiles(this.files)"></label><button type="button" onclick="importGooglePhotosToSpecies()">☁ Import from Google Photos</button><select id="newImageType"><option value="mixed">Mixed / Other</option><option value="skull">Skull / Teeth</option><option value="skin">Skin / Whole</option></select></div>
-        <div class="image-grid">${imgs.map(i=>`<div class="image-admin"><img src="${esc(i.data)}" onclick="openLightbox('${esc(i.data)}')"><div class="image-admin-meta"><span>${i.custom?'Your image':'Course image'}</span><select onchange="setImageTag('${esc(i.id)}',this.value)"><option value="mixed" ${(i.viewTypes||[]).includes('mixed')?'selected':''}>Mixed / Other</option><option value="skull" ${(i.viewTypes||[]).includes('skull')?'selected':''}>Skull / Teeth</option><option value="skin" ${(i.viewTypes||[]).includes('skin')?'selected':''}>Skin / Whole</option></select><button type="button" onclick="openImageMaskEditor('${esc(i.id)}')">${i.quizMask?'Edit quiz text area':'Set quiz text area'}</button>${i.quizMask?`<button type="button" onclick="clearImageMask('${esc(i.id)}')">Clear quiz mask</button>`:''}${i.custom?`<button class="danger" onclick="removeCustomImage('${esc(i.id)}')">Delete</button>`:''}</div></div>`).join('')}</div>
+        <div class="image-grid">${imgs.map(i=>`<div class="image-admin"><img src="${esc(i.data)}" onclick="openLightbox('${esc(i.data)}')"><div class="image-admin-meta"><span>${i.custom?'Your image':'Course image'}${i.edited?' · Edited':''}</span><select onchange="setImageTag('${esc(i.id)}',this.value)"><option value="mixed" ${(i.viewTypes||[]).includes('mixed')?'selected':''}>Mixed / Other</option><option value="skull" ${(i.viewTypes||[]).includes('skull')?'selected':''}>Skull / Teeth</option><option value="skin" ${(i.viewTypes||[]).includes('skin')?'selected':''}>Skin / Whole</option></select><button type="button" onclick="openImageEditor('${esc(i.id)}')">✏️ Edit image</button><button type="button" onclick="openImageMaskEditor('${esc(i.id)}')">${i.quizMask?'Edit quiz text area':'Set quiz text area'}</button>${i.edited?`<button type="button" onclick="resetImageEdit('${esc(i.id)}')">Reset image edit</button>`:''}${i.quizMask?`<button type="button" onclick="clearImageMask('${esc(i.id)}')">Clear quiz mask</button>`:''}${i.custom?`<button class="danger" onclick="removeCustomImage('${esc(i.id)}')">Delete</button>`:''}</div></div>`).join('')}</div>
       </section>
     </div>
   `);
@@ -479,6 +481,53 @@ async function handlePaste(e){
   const file=item.getAsFile(); if(file)await saveImageFile(file,currentImageType());
 }
 async function handleFiles(files){for(const f of files)await saveImageFile(f,currentImageType())}
+function imageEditorDefault(){return {rotation:0,flipX:false,flipY:false,brightness:100,contrast:100,saturation:100,crop:{x:0,y:0,w:100,h:100}}}
+function openImageEditor(id){
+  const im=imgsForSelectedSpecies().find(x=>x.id===id);if(!im)return;
+  openImageEditModal(im.data,(edited)=>saveEditedImage(id,edited),`Edit ${selectedSpecies()?.common||'image'}`)
+}
+function openPendingSpeciesImageEditor(index){const x=state.pendingSpeciesImages[index];if(!x)return;openImageEditModal(x.editedDataUrl||x.dataUrl,(edited)=>{x.editedDataUrl=edited;renderAddSpecies($('app'))},'Edit new species image')}
+function openImageEditModal(src,onSave,title='Edit image'){
+  closeImageEditor();
+  const modal=document.createElement('div');modal.id='imageEditorModal';modal.className='image-editor-backdrop';
+  modal.innerHTML=`<div class="image-editor-panel"><div class="image-editor-head"><div><h2>${esc(title)}</h2><p>Edit a copy of the image. The original is preserved.</p></div><button type="button" onclick="closeImageEditor()">✕</button></div><div class="image-editor-stage" id="imageEditStage"><canvas id="imageEditCanvas"></canvas><div id="imageCropBox" class="image-crop-box"><span>DRAG TO CROP</span><i class="image-crop-resize"></i></div></div><div class="image-editor-toolbar"><div class="image-editor-group"><b>Crop</b><button type="button" id="cropFull">Full image</button><button type="button" id="cropSquare">Square</button></div><div class="image-editor-group"><b>Rotate</b><button type="button" id="rotLeft">↶ 90°</button><button type="button" id="rotRight">↷ 90°</button></div><div class="image-editor-group"><b>Flip</b><button type="button" id="flipX">↔ Horizontal</button><button type="button" id="flipY">↕ Vertical</button></div></div><div class="image-editor-controls"><label>Brightness <input id="editBrightness" type="range" min="40" max="160" value="100"><output>100%</output></label><label>Contrast <input id="editContrast" type="range" min="40" max="160" value="100"><output>100%</output></label><label>Saturation <input id="editSaturation" type="range" min="0" max="180" value="100"><output>100%</output></label></div><div class="image-editor-size"><b>Output size</b><label>Width <input id="editWidth" type="number" min="20" max="8000"></label><label>Height <input id="editHeight" type="number" min="20" max="8000"></label><label><input id="editLock" type="checkbox" checked> Lock aspect ratio</label></div><div class="button-row"><button type="button" id="resetImageEditControls">Reset edits</button><button type="button" onclick="closeImageEditor()">Cancel</button><button class="primary" type="button" id="saveImageEdit">Save edited image</button></div></div>`;
+  document.body.appendChild(modal);
+  const canvas=modal.querySelector('#imageEditCanvas'),ctx=canvas.getContext('2d'),stage=modal.querySelector('#imageEditStage'),box=modal.querySelector('#imageCropBox'),img=new Image();
+  const st=imageEditorDefault();let baseW=0,baseH=0,renderedW=0,renderedH=0;
+  const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
+  function draw(){
+    if(!img.naturalWidth)return;
+    const rot=((st.rotation%360)+360)%360,swap=rot===90||rot===270;renderedW=swap?img.naturalHeight:img.naturalWidth;renderedH=swap?img.naturalWidth:img.naturalHeight;
+    canvas.width=renderedW;canvas.height=renderedH;ctx.save();ctx.filter=`brightness(${st.brightness}%) contrast(${st.contrast}%) saturate(${st.saturation}%)`;ctx.translate(renderedW/2,renderedH/2);ctx.rotate(rot*Math.PI/180);ctx.scale(st.flipX?-1:1,st.flipY?-1:1);ctx.drawImage(img,-img.naturalWidth/2,-img.naturalHeight/2);ctx.restore();
+    const maxW=Math.max(280,Math.min(stage.clientWidth-20,900)),maxH=Math.max(220,Math.min(window.innerHeight*0.55,650));const scale=Math.min(maxW/renderedW,maxH/renderedH,1);canvas.style.width=Math.round(renderedW*scale)+'px';canvas.style.height=Math.round(renderedH*scale)+'px';
+    box.style.left=st.crop.x+'%';box.style.top=st.crop.y+'%';box.style.width=st.crop.w+'%';box.style.height=st.crop.h+'%';
+    modal.querySelector('#editWidth').value=Math.round(renderedW*st.crop.w/100);modal.querySelector('#editHeight').value=Math.round(renderedH*st.crop.h/100);
+  }
+  function setCrop(x,y,w,h){st.crop={x:clamp(x,0,100),y:clamp(y,0,100),w:clamp(w,5,100),h:clamp(h,5,100)};st.crop.w=Math.min(st.crop.w,100-st.crop.x);st.crop.h=Math.min(st.crop.h,100-st.crop.y);draw()}
+  function updateFilter(id,key){const input=modal.querySelector('#'+id),out=input.nextElementSibling;st[key]=Number(input.value);out.value=input.value+'%';draw()}
+  ['editBrightness','editContrast','editSaturation'].forEach((id)=>modal.querySelector('#'+id).addEventListener('input',()=>updateFilter(id,id.replace('edit','').toLowerCase())));
+  modal.querySelector('#rotLeft').onclick=()=>{st.rotation=(st.rotation+270)%360;draw()};modal.querySelector('#rotRight').onclick=()=>{st.rotation=(st.rotation+90)%360;draw()};modal.querySelector('#flipX').onclick=()=>{st.flipX=!st.flipX;draw()};modal.querySelector('#flipY').onclick=()=>{st.flipY=!st.flipY;draw()};
+  modal.querySelector('#cropFull').onclick=()=>setCrop(0,0,100,100);
+  modal.querySelector('#cropSquare').onclick=()=>{const side=Math.min(100,renderedW/renderedH*100);const h=side*renderedH/renderedW;const w=Math.min(100,h*renderedH/renderedW);const pct=Math.min(100,100*renderedH/renderedW);const cw=Math.min(100,100*renderedH/renderedW);const ch=Math.min(100,100*renderedW/renderedH);setCrop((100-cw)/2,(100-ch)/2,cw,ch)};
+  let dragging=false,resizing=false,sx=0,sy=0,start={};
+  box.addEventListener('pointerdown',e=>{resizing=e.target.classList.contains('image-crop-resize');dragging=!resizing;sx=e.clientX;sy=e.clientY;start={...st.crop};box.setPointerCapture(e.pointerId);e.preventDefault()});
+  box.addEventListener('pointermove',e=>{if(!dragging&&!resizing)return;const r=canvas.getBoundingClientRect(),dx=(e.clientX-sx)/r.width*100,dy=(e.clientY-sy)/r.height*100;if(dragging)setCrop(start.x+dx,start.y+dy,start.w,start.h);else setCrop(start.x,start.y,start.w+dx,start.h+dy)});box.addEventListener('pointerup',()=>{dragging=false;resizing=false});
+  const wInput=modal.querySelector('#editWidth'),hInput=modal.querySelector('#editHeight'),lock=modal.querySelector('#editLock');wInput.oninput=()=>{const w=clamp(Number(wInput.value)||20,20,8000);wInput.value=Math.round(w);if(lock.checked){const ratio=(renderedH*st.crop.h)/(renderedW*st.crop.w);hInput.value=Math.round(w*ratio)}};hInput.oninput=()=>{const h=clamp(Number(hInput.value)||20,20,8000);hInput.value=Math.round(h);if(lock.checked){const ratio=(renderedW*st.crop.w)/(renderedH*st.crop.h);wInput.value=Math.round(h*ratio)}};
+  modal.querySelector('#resetImageEditControls').onclick=()=>{Object.assign(st,imageEditorDefault());['editBrightness','editContrast','editSaturation'].forEach((id)=>{modal.querySelector('#'+id).value=100;modal.querySelector('#'+id).nextElementSibling.value='100%'});draw()};
+  modal.querySelector('#saveImageEdit').onclick=()=>{const sx=renderedW*st.crop.x/100,sy=renderedH*st.crop.y/100,sw=renderedW*st.crop.w/100,sh=renderedH*st.crop.h/100;let ow=clamp(Number(wInput.value)||Math.round(sw),20,8000),oh=clamp(Number(hInput.value)||Math.round(sh),20,8000);const temp=document.createElement('canvas');temp.width=Math.max(1,Math.round(sw));temp.height=Math.max(1,Math.round(sh));const tc=temp.getContext('2d');tc.drawImage(canvas,sx,sy,sw,sh,0,0,temp.width,temp.height);const out=document.createElement('canvas');out.width=ow;out.height=oh;out.getContext('2d').drawImage(temp,0,0,ow,oh);onSave(out.toDataURL('image/jpeg',.92));closeImageEditor()};
+  img.onload=()=>{draw()};img.src=src;
+}
+function closeImageEditor(){document.getElementById('imageEditorModal')?.remove()}
+async function saveEditedImage(id,dataUrl){
+  const custom=state.customImages.find(x=>x.id===id);
+  if(custom){custom.editedDataUrl=dataUrl;await dbPut(IMG_STORE,custom)}else{state.imageEdits[id]={dataUrl,editedAt:Date.now()};saveImageEdits()}
+  await refreshStudyData();render()
+}
+async function resetImageEdit(id){
+  const custom=state.customImages.find(x=>x.id===id);
+  if(custom){delete custom.editedDataUrl;await dbPut(IMG_STORE,custom)}else{delete state.imageEdits[id];saveImageEdits()}
+  await refreshStudyData();render()
+}
 function defaultQuizMask(){return {x:0,y:76,w:100,h:24,blur:14,mode:'blur'}}
 function openMaskEditor(src,initial,onSave,title='Set quiz text area'){
   closeImageMaskEditor();
@@ -527,10 +576,11 @@ function renderSettings(app){const f=state.features||loadFeatures(),labels={coll
 function setFeature(k,v){state.features=state.features||loadFeatures();state.features[k]=!!v;saveFeatures(state.features);render()}
 function enableAllFeatures(){saveFeatures(featureDefaults());render()}
 function disableOptionalFeatures(){const f=featureDefaults();['badges','streak','daily','surprise','galleries','mystery','trouble','smartReview','xp','themes','journal','recent','favorites','stats','history','clues'].forEach(k=>f[k]=false);saveFeatures(f);render()}
-async function handleNewSpeciesFiles(files){for(const file of [...(files||[])]){if(!file.type.startsWith('image/'))continue;const dataUrl=await new Promise((res,rej)=>{const r=new FileReader();r.onload=()=>res(r.result);r.onerror=rej;r.readAsDataURL(file)});state.pendingSpeciesImages.push({name:file.name||'Species image',dataUrl,viewTypes:['mixed'],quizMask:null,createdAt:Date.now()})}renderAddSpecies($('app'))}
+async function handleNewSpeciesFiles(files){for(const file of [...(files||[])]){if(!file.type.startsWith('image/'))continue;const dataUrl=await new Promise((res,rej)=>{const r=new FileReader();r.onload=()=>res(r.result);r.onerror=rej;r.readAsDataURL(file)});state.pendingSpeciesImages.push({name:file.name||'Species image',dataUrl,editedDataUrl:'',viewTypes:['mixed'],quizMask:null,createdAt:Date.now()})}renderAddSpecies($('app'))}
 function removePendingSpeciesImage(index){state.pendingSpeciesImages.splice(index,1);renderAddSpecies($('app'))}
-async function addSpeciesFromForm(){const common=$('newCommon').value.trim(),scientific=$('newScientific').value.trim(),family=$('newFamily').value.trim();if(!common||!scientific){$('speciesError').textContent='Common name and scientific name are required.';return}const id='custom-species-'+Date.now()+'-'+Math.random().toString(36).slice(2);const sp={id,common,scientific,family,images:[],custom:true,subject:state.subject,createdAt:Date.now()};await dbPut(SPECIES_STORE,sp);await dbPut(INFO_STORE,{speciesId:id,notes:$('newNotes').value||'',clues:$('newClues').value||''});for(const image of state.pendingSpeciesImages)await putCustomImage({id:'custom-'+Date.now()+'-'+Math.random().toString(36).slice(2),speciesId:id,name:image.name,dataUrl:image.dataUrl,viewTypes:image.viewTypes||['mixed'],quizMask:image.quizMask||null,createdAt:image.createdAt||Date.now()});state.pendingSpeciesImages=[];await refreshStudyData();state.selectedSpeciesId=id;setScreen('manage')}
-function renderAddSpecies(app){const previews=state.pendingSpeciesImages.map((x,i)=>`<div class="pending-image"><img src="${esc(x.dataUrl)}"><button type="button" onclick="openPendingSpeciesMaskEditor(${i})">${x.quizMask?'Edit quiz text area':'Set quiz text area'}</button><button type="button" class="danger" onclick="removePendingSpeciesImage(${i})">Remove</button></div>`).join('');app.innerHTML=shell('Add Species',`<div class="panel add-species-form"><h2>Add a new ${currentSubject().name.toLowerCase()} species to ${subjectTitle()}</h2><p class="muted">Add the species information and its images together. Images selected here are added to the Vault automatically when you click Add.</p><div class="form-grid"><label>Common name<input id="newCommon" placeholder="Common name"></label><label>Scientific name<input id="newScientific" placeholder="Genus species"></label><label>Family <span class="muted">(optional)</span><input id="newFamily" placeholder="e.g., Felidae"></label></div><label>My species notes<textarea id="newNotes" rows="5" placeholder="Anything you want to remember..."></textarea></label><label>My identification clues<textarea id="newClues" rows="5" placeholder="Diagnostic features you want to remember..."></textarea></label><div class="upload-row"><label class="file-button">Add species images<input type="file" accept="image/*" multiple onchange="handleNewSpeciesFiles(this.files)"></label><span class="muted">Select several images at once.</span></div><div class="pending-images">${previews}</div><div class="cloud-import-note"><b>Google Photos:</b> After adding the species, use <b>Import from Google Photos</b> on its Images page.</div><div id="speciesError" class="editor-error"></div><div class="button-row"><button class="primary" onclick="addSpeciesFromForm()">Add to ${subjectTitle()}</button><button onclick="state.pendingSpeciesImages=[];setScreen('study')">Cancel</button></div></div>`)}
+async function addSpeciesFromForm(){const common=$('newCommon').value.trim(),scientific=$('newScientific').value.trim(),family=$('newFamily').value.trim();if(!common||!scientific){$('speciesError').textContent='Common name and scientific name are required.';return}const id='custom-species-'+Date.now()+'-'+Math.random().toString(36).slice(2);const sp={id,common,scientific,family,images:[],custom:true,subject:state.subject,createdAt:Date.now()};await dbPut(SPECIES_STORE,sp);await dbPut(INFO_STORE,{speciesId:id,notes:$('newNotes').value||'',clues:$('newClues').value||''});for(const image of state.pendingSpeciesImages)await putCustomImage({id:'custom-'+Date.now()+'-'+Math.random().toString(36).slice(2),speciesId:id,name:image.name,dataUrl:image.dataUrl,editedDataUrl:image.editedDataUrl||'',viewTypes:image.viewTypes||['mixed'],quizMask:image.quizMask||null,createdAt:image.createdAt||Date.now()});state.pendingSpeciesImages=[];state.pendingSpeciesForm={common:'',scientific:'',family:'',notes:'',clues:''};await refreshStudyData();state.selectedSpeciesId=id;setScreen('manage')}
+function captureAddSpeciesForm(){if(!$('newCommon'))return;state.pendingSpeciesForm={common:$('newCommon').value||'',scientific:$('newScientific').value||'',family:$('newFamily').value||'',notes:$('newNotes').value||'',clues:$('newClues').value||''}}
+function renderAddSpecies(app){captureAddSpeciesForm();const f=state.pendingSpeciesForm||{};const previews=state.pendingSpeciesImages.map((x,i)=>`<div class="pending-image"><img src="${esc(x.editedDataUrl||x.dataUrl)}"><span class="pending-image-status">${x.editedDataUrl?'Edited copy':'Original'}</span><button type="button" onclick="openPendingSpeciesImageEditor(${i})">✏️ Edit image</button><button type="button" onclick="openPendingSpeciesMaskEditor(${i})">${x.quizMask?'Edit quiz text area':'Set quiz text area'}</button><button type="button" class="danger" onclick="removePendingSpeciesImage(${i})">Remove</button></div>`).join('');app.innerHTML=shell('Add Species',`<div class="panel add-species-form"><h2>Add a new ${currentSubject().name.toLowerCase()} species to ${subjectTitle()}</h2><p class="muted">Add the species information and its images together. You can edit or mask every image before saving the species.</p><div class="form-grid"><label>Common name<input id="newCommon" value="${esc(f.common)}" placeholder="Common name"></label><label>Scientific name<input id="newScientific" value="${esc(f.scientific)}" placeholder="Genus species"></label><label>Family <span class="muted">(optional)</span><input id="newFamily" value="${esc(f.family)}" placeholder="e.g., Felidae"></label></div><label>My species notes<textarea id="newNotes" rows="5" placeholder="Anything you want to remember...">${esc(f.notes)}</textarea></label><label>My identification clues<textarea id="newClues" rows="5" placeholder="Diagnostic features you want to remember...">${esc(f.clues)}</textarea></label><div class="upload-row"><label class="file-button">Add species images<input type="file" accept="image/*" multiple onchange="handleNewSpeciesFiles(this.files)"></label><span class="muted">Select several images at once.</span></div><div class="pending-images">${previews}</div><div class="cloud-import-note"><b>Google Photos:</b> After adding the species, use <b>Import from Google Photos</b> on its Images page.</div><div id="speciesError" class="editor-error"></div><div class="button-row"><button class="primary" onclick="addSpeciesFromForm()">Add to ${subjectTitle()}</button><button onclick="state.pendingSpeciesImages=[];state.pendingSpeciesForm={common:'',scientific:'',family:'',notes:'',clues:''};setScreen('study')">Cancel</button></div></div>`)}
 function renderProgress(app){
   const p=loadProgress();
   const rows=speciesList().map(s=>{const r=p[s.id]||{seen:0,correct:0,wrong:0};const pct=r.seen?Math.round(r.correct/r.seen*100):0;return `<tr><td>${esc(s.common)}</td><td>${sciHtml(s.scientific)}</td><td>${r.seen}</td><td>${r.correct}</td><td>${r.wrong}</td><td>${pct}%</td></tr>`}).join('');
@@ -543,9 +593,9 @@ function closeLightbox(){ $('lightbox').classList.remove('open') }
 
 async function blobToDataUrl(blob){return await new Promise((res,rej)=>{const r=new FileReader();r.onload=()=>res(r.result);r.onerror=rej;r.readAsDataURL(blob)})}
 async function exportBackup(){
-  const images=state.customImages.map(x=>({id:x.id,speciesId:x.speciesId,name:x.name,dataUrl:x.dataUrl,viewTypes:x.viewTypes,createdAt:x.createdAt}));
+  const images=state.customImages.map(x=>({id:x.id,speciesId:x.speciesId,name:x.name,dataUrl:x.dataUrl,editedDataUrl:x.editedDataUrl||'',viewTypes:x.viewTypes,quizMask:x.quizMask||null,createdAt:x.createdAt}));
   const homeImages=state.homeImages.map(x=>({id:x.id,name:x.name,dataUrl:x.dataUrl}));
-  const backup={version:5,createdAt:new Date().toISOString(),customImages:images,quizMaskOverrides:state.maskOverrides,studyCards:state.cards,speciesInfo:state.speciesInfo,customSpecies:state.customSpecies,tagOverrides:state.tagOverrides,progress:loadProgress(),settings:loadSettings(),features:state.features||loadFeatures(),favorites:state.favorites,history:loadHistory(),homeConfig:state.homeConfig||loadHomeConfig(),homeImages};
+  const backup={version:5,createdAt:new Date().toISOString(),customImages:images,quizMaskOverrides:state.maskOverrides,imageEditOverrides:state.imageEdits,studyCards:state.cards,speciesInfo:state.speciesInfo,customSpecies:state.customSpecies,tagOverrides:state.tagOverrides,progress:loadProgress(),settings:loadSettings(),features:state.features||loadFeatures(),favorites:state.favorites,history:loadHistory(),homeConfig:state.homeConfig||loadHomeConfig(),homeImages};
   const blob=new Blob([JSON.stringify(backup)],{type:'application/json'}),url=URL.createObjectURL(blob);
   const a=document.createElement('a');a.href=url;a.download='mammalogy-trainer-backup.json';a.click();URL.revokeObjectURL(url)
 }
@@ -563,6 +613,7 @@ async function importBackup(file){
     for(const [id,obj] of Object.entries(b.speciesInfo||{}))await dbPut(INFO_STORE,{speciesId:id,notes:obj.notes||''});
     if(b.tagOverrides)localStorage.setItem(subjectKey(TAGS_KEY),JSON.stringify(b.tagOverrides));
     if(b.quizMaskOverrides)localStorage.setItem(subjectKey(MASKS_KEY),JSON.stringify(b.quizMaskOverrides));
+    if(b.imageEditOverrides)localStorage.setItem(subjectKey(EDITS_KEY),JSON.stringify(b.imageEditOverrides));
     if(b.progress)localStorage.setItem(subjectKey(PROGRESS_KEY),JSON.stringify(b.progress));
     if(b.settings)localStorage.setItem(subjectKey(SETTINGS_KEY),JSON.stringify(b.settings));
     if(b.features)localStorage.setItem(subjectKey(FEATURES_KEY),JSON.stringify(b.features));
@@ -581,7 +632,7 @@ Object.assign(window,{
   openStudySpecies,setStudySpecies,studyNext,studyPrev,shuffleStudyCards,
   openStudyNewCard,openStudyEditCard,submitCardEditor,cancelCardEditor,
   saveCard,editCard,deleteCard,editSpeciesInfo,
-  handlePaste,handleFiles,saveImageFile,removeCustomImage,setImageTag,openPendingSpeciesMaskEditor,openImageMaskEditor,clearImageMask,closeImageMaskEditor,handleNewSpeciesFiles,removePendingSpeciesImage,importGooglePhotosToSpecies,saveGooglePhotosSettings,
+  handlePaste,handleFiles,saveImageFile,removeCustomImage,setImageTag,openPendingSpeciesMaskEditor,openPendingSpeciesImageEditor,openImageMaskEditor,openImageEditor,resetImageEdit,closeImageEditor,clearImageMask,closeImageMaskEditor,handleNewSpeciesFiles,removePendingSpeciesImage,captureAddSpeciesForm,importGooglePhotosToSpecies,saveGooglePhotosSettings,
   toggleFavorite,openLightbox,closeLightbox,
   enableAllFeatures,disableOptionalFeatures,setFeature,
   addSpeciesFromForm,filterSpeciesLibrary,openManageLibrary,resetProgress,exportBackup,triggerImportBackup,importBackup,
@@ -592,7 +643,7 @@ Object.assign(window,{
 });
 
 function boot(){
-  loadTags();state.features=loadFeatures();state.favorites=loadFavorites();state.homeConfig=loadHomeConfig();const s=loadSettings();state.length=Number(s.length||20);state.focusMissed=!!s.focusMissed;
+  loadTags();loadImageEdits();state.features=loadFeatures();state.favorites=loadFavorites();state.homeConfig=loadHomeConfig();const s=loadSettings();state.length=Number(s.length||20);state.focusMissed=!!s.focusMissed;
   refreshStudyData().then(()=>{state.selectedSpeciesId=speciesList()[0]?.id;render()});
 }
 document.addEventListener('keydown',e=>{if(e.key==='Escape')closeLightbox()});

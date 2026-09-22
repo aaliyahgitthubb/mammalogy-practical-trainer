@@ -1,4 +1,4 @@
-The Mammal Vault — Update 1.7.0
+The Mammal Vault — Update 1.8.4
 
 Upload/replace these files in the existing GitHub Pages repository:
 - index.html
@@ -10,66 +10,17 @@ Upload/replace these files in the existing GitHub Pages repository:
 
 Do NOT delete data.js, embedded_images.js, or the images folder.
 
-New in 1.7.0:
-- The Mammal Vault branding and “Enter Mammal Vault” access button
-- Dynamic homepage access bar controlled by Settings
-- Settings page with individual feature toggles
-- Add Species system; custom species persist in IndexedDB and enter study/image/practical pools
-- Species mastery rings/bars
-- Favorites
-- Recently Added
-- Study This Species workflow
-- Specimen gallery inside each species
-- Mastery badges
-- Study streak and XP
-- Daily Challenge, Surprise Me, Mystery Specimen, Smart Review
-- Build My Study Session with focus filters and exact-species selection
-- Detailed statistics and study-history view
-- Personal species journal and identification clues
-- Existing custom images, flashcards, tags, home customization, backups, and corrected taxonomy behavior preserved
+1.8.4 — Integrated Image Editor
+- Added an integrated image editor under Manage Species & Images.
+- Edit image tools include crop, square crop, 90° rotation, horizontal/vertical flip, brightness, contrast, saturation, and output resize.
+- Editing creates an edited copy and preserves the original image.
+- Course-image edits are stored as browser-local overrides; custom-image edits are stored with the custom image.
+- Added Reset image edit for edited course/custom images.
+- Existing quiz text-area masks remain separate from image editing.
+- Added the same image editor during first-time species creation, before the species is saved.
+- First-time image editing preserves the species name, scientific name, family, notes, and clues while editing images.
+- First-time images can still receive their per-image quiz text-area mask before saving.
+- Backups now include edited custom images and course-image edit overrides.
+- Updated service-worker cache so GitHub Pages loads the new version.
 
-Important: the new Add Species feature creates custom species without altering the original course species list.
-
-
-1.7.1 button/navigation fix:
-- index.html now loads embedded_images.js before app.js.
-- Image lookup safely falls back to images/<filename> if embedded image data is unavailable.
-- Navigation/feature functions are explicitly exposed on window for reliable button clicks on GitHub Pages.
-- Smart Review and Favorites now correctly constrain their quiz species pools.
-- Service-worker cache version bumped to force the corrected JavaScript to update.
-
-
-VERSION 1.8.0
-- Scientific names are automatically rendered in italics throughout the trainer where displayed.
-- Quiz images can now blur likely bottom text/labels, cover them, or show images unchanged.
-- Quiz label-mask height is adjustable in Settings.
-- Added a Class Trainer Hub with separate Mammalogy, Ornithology, and Herpetology workspaces.
-- Ornithology and Herpetology start empty and can be populated with custom species, images, and study cards without mixing data into the Mammal Vault.
-- Existing Mammalogy IndexedDB and localStorage data are preserved.
-
-1.8.1 - Added first-time species image uploads and Google Photos Picker import. Google Photos import requires a Google Cloud OAuth web client ID and Photos Picker API enabled. Imported photos are copied into the browser-local Vault; there is no automatic two-way sync.
-
-
-VERSION 1.8.2
-- Added per-image quiz text/label masking.
-- When adding a new species, each selected image can be configured individually by dragging and resizing a mask over the printed label before saving the species.
-- Existing custom images have Set/Edit quiz text area controls in Manage Images.
-- Each mask is stored with the image and used only during quizzes; the original image remains unchanged.
-
-
-VERSION 1.8.3 — Species Library Landing Page
-- Manage Species & Images now opens to a family-organized Species Library landing page.
-- Added common/scientific-name search and family grouping.
-- Added species cards with a thumbnail; click a card to open the existing species image manager.
-- Moved + Add Species to the library landing page.
-- Added Back to Species Library from individual species management.
-- Preserved v1.8.2 per-image quiz mask functionality and all existing species/image data files.
-
-
-VERSION 1.8.3 FIX — Per-image quiz mask access
-- Fixed the Species Image Manager so the quiz text-area editor is available for BOTH course images and user-added images.
-- Course-image masks are saved separately in this browser and are not written into the original course image files.
-- A saved per-image mask takes precedence over the global quiz-label setting for that image during quizzes.
-- Added Clear quiz mask so an individual image can be returned to its unmasked state.
-- Backup export/import now preserves course-image quiz mask settings.
-- Updated cache-busting/service-worker version so GitHub Pages loads the corrected 1.8.3 JavaScript.
+Previous 1.8.3 functionality is preserved, including the Species Library landing page, family grouping, per-image quiz masks, Google Photos import, and image management.
