@@ -1,12 +1,1 @@
-v1.9.4 - Flashcard image attachments
-
-Adds the agreed image feature to flashcard creation/editing:
-- Include an image from the selected species library.
-- Choose a specific species image by thumbnail.
-- Image placement defaults to No image.
-- Placement options: No image, Separate image card, Front of card, Back of card.
-- Separate image cards appear as their own study step in Flashcard Mode.
-- Existing cards remain text-only unless edited.
-- Flashcard question bank remains on the creation/edit page.
-
-Preserve data.js, embedded_images.js, and images/ when applying this update.
+v1.9.5 — Restored the complete v1.9.3 application and safely integrated flashcard image attachments. Existing flashcards remain text-only by default. New cards can select one image from the selected species library and place it as no image (default), separate image card, front, or back.
