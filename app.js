@@ -21,7 +21,7 @@ const state={
   subject:'mammalogy', screen:'home', mode:'full', length:20, current:null, answered:false, editor:null,
   session:{q:0,correct:0,points:0,totalPoints:0}, lastSpecies:null, focusMissed:false,
   customImages:[], customSpecies:[], pendingSpeciesImages:[], tagOverrides:{}, maskOverrides:{}, imageEdits:{}, cards:[], speciesInfo:{}, homeImages:[], homeConfig:null,
-  maskEditor:null, pendingSpeciesForm:{common:'',scientific:'',family:'',notes:'',clues:''}, selectedSpeciesId:null, studyMode:'browse', studyIndex:0, studyFlipped:false, studyTagFilter:'', sessionPlan:null, mystery:false, features:null, favorites:[]
+  maskEditor:null, cardBankQuery:'', cardBankSpecies:'', pendingSpeciesForm:{common:'',scientific:'',family:'',notes:'',clues:''}, selectedSpeciesId:null, studyMode:'browse', studyIndex:0, studyFlipped:false, studyTagFilter:'', sessionPlan:null, mystery:false, features:null, favorites:[]
 };
 function speciesList(){const source=(state.subject==='mammalogy'&&typeof SOURCE_SPECIES!=='undefined'&&Array.isArray(SOURCE_SPECIES))?SOURCE_SPECIES:[];return [...source,...state.customSpecies]}
 function featureDefaults(){return {collection:true,badges:true,streak:true,daily:true,surprise:true,galleries:true,mystery:true,trouble:true,smartReview:true,sessionResults:true,xp:true,themes:true,journal:true,studyThis:true,mastery:true,recent:true,favorites:true,stats:true,history:true,clues:true,studyBuilder:true}}
@@ -392,6 +392,9 @@ function renderCardEditor(app){
   const suggested=[...new Set(state.cards.flatMap(x=>x.tags||[]))].sort();
   const previewFront=esc(e.front||'Your question will appear here.');
   const previewBack=esc(e.back||'Your answer will appear here.');
+  const bankSpeciesOptions=`<option value="">All species</option>`+speciesList().map(x=>`<option value="${esc(x.id)}" ${x.id===state.cardBankSpecies?'selected':''}>${esc(x.common)}</option>`).join('');
+  const bankCards=state.cards.slice().sort((a,b)=>(speciesById(a.speciesId)?.common||'').localeCompare(speciesById(b.speciesId)?.common||'') || String(a.front||'').localeCompare(String(b.front||'')));
+  const bankRows=bankCards.length?bankCards.map(c=>{const sp=speciesById(c.speciesId),q=normalize(`${c.front||''} ${c.back||''} ${c.category||''} ${(c.tags||[]).join(' ')}`);return `<div class="question-bank-row" data-bank-search="${esc(q)}" data-bank-species="${esc(c.speciesId)}"><div class="question-bank-main"><div class="question-bank-meta"><strong>${esc(sp?.common||'Unknown species')}</strong><span class="tag">${esc(c.category||'General')}</span></div><div class="question-bank-front">${esc(c.front||'')}</div><div class="question-bank-back">${esc(c.back||'')}</div>${(c.tags||[]).length?`<div class="tag-row">${c.tags.map(t=>`<span class="tag secondary">${esc(t)}</span>`).join('')}</div>`:''}</div><div class="card-actions"><button type="button" onclick="openStudyEditCard('${esc(c.id)}')">Edit</button><button type="button" class="danger" onclick="deleteCard('${esc(c.id)}');render()">Delete</button></div></div>`}).join(''):`<div class="empty">No flashcards have been created yet.</div>`;
   app.innerHTML=shell(e.id?'Edit Study Card':'Create Study Card',`
     <div class="editor-layout">
       <section class="panel editor-form">
@@ -418,11 +421,32 @@ function renderCardEditor(app){
         <p class="muted">The preview updates as you type. The front and back stay visible together while you build the card.</p>
       </section>
     </div>
+    <section class="panel question-bank-panel">
+      <div class="section-head"><div><h2>📚 Flashcard Question Bank</h2><p class="muted">All of your existing flashcards are shown here while you create or edit a card.</p></div><strong id="questionBankCount">${bankCards.length} card${bankCards.length===1?'':'s'}</strong></div>
+      <div class="question-bank-filters"><input id="questionBankSearch" value="${esc(state.cardBankQuery||'')}" placeholder="Search questions, answers, categories, or tags..." oninput="state.cardBankQuery=this.value;filterCardBank()"><select id="questionBankSpecies" onchange="state.cardBankSpecies=this.value;filterCardBank()">${bankSpeciesOptions}</select></div>
+      <div id="questionBankList" class="question-bank-list">${bankRows}</div>
+    </section>
   `);
   ['cardFront','cardBack','cardSpecies','cardCategory','customCategory'].forEach(id=>$(id)?.addEventListener('input',updateCardPreview));
   $('cardCategory')?.addEventListener('change',toggleCustomCategory);
   $('tagInput')?.addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();addEditorTag()}});
 }
+
+function filterCardBank(){
+  const q=normalize($('questionBankSearch')?.value||'');
+  const sp=$('questionBankSpecies')?.value||'';
+  let visible=0;
+  document.querySelectorAll('.question-bank-row').forEach(row=>{
+    const matchesQ=!q||normalize(row.dataset.bankSearch||'').includes(q);
+    const matchesSp=!sp||row.dataset.bankSpecies===sp;
+    const show=matchesQ&&matchesSp;
+    row.style.display=show?'':'none';
+    if(show)visible++;
+  });
+  const count=$('questionBankCount');
+  if(count)count.textContent=`${visible} card${visible===1?'':'s'}`;
+}
+
 function toggleCustomCategory(){
   const custom=$('cardCategory')?.value==='__custom__';
   const wrap=$('customCategoryWrap');if(wrap)wrap.style.display=custom?'block':'none';

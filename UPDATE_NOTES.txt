@@ -1,9 +1,7 @@
-The Mammal Vault v1.9.2
+Mammalogy Practical Companion — v1.9.3
 
-- Moved Image Categories from Settings to the Manage Species & Images page.
-- Added the Image Categories manager to the Species Library and individual species image-management views.
-- Custom image categories can be added or removed without leaving Manage Species & Images.
-- Existing image-tag dropdowns now use the full custom category list instead of only the three built-in categories.
-- Existing Google Photos/custom-category functionality from v1.9.1 is preserved.
-
-UPLOAD: Extract this ZIP before uploading. Replace only the included files. Do NOT delete or replace data.js, embedded_images.js, or images/.
+- Added the Flashcard Question Bank directly to the Create/Edit Study Card page.
+- Shows all existing flashcards below the creation form.
+- Added search and species filtering to the question bank.
+- Existing cards can be edited or deleted directly from the question bank.
+- No existing species, images, or flashcards are removed.
