@@ -1,50 +1,5 @@
-The Mammal Vault — Update 1.8.7
+Mammalogy GitHub Update 1.8.9
 
-Upload/replace these files in the existing GitHub Pages repository:
-- index.html
-- app.js
-- styles.css
-- manifest.webmanifest
-- version.json
-- sw.js
+Fixes Google Photos Picker selection timing behavior. The Vault now checks the session immediately, uses Google’s polling configuration, re-checks when you return to the tab, removes the artificial 10-minute cap, and cleans up completed/expired sessions.
 
-Do NOT delete data.js, embedded_images.js, or the images folder.
-
-1.8.4 — Integrated Image Editor
-
-- Added an integrated image editor under Manage Species & Images.
-- Edit image tools include crop, square crop, 90° rotation, horizontal/vertical flip, brightness, contrast, saturation, and output resize.
-- Editing creates an edited copy and preserves the original image.
-- Course-image edits are stored as browser-local overrides; custom-image edits are stored with the custom image.
-- Added Reset image edit for edited course/custom images.
-- Existing quiz text-area masks remain separate from image editing.
-- Added the same image editor during first-time species creation, before the species is saved.
-- First-time image editing preserves the species name, scientific name, family, notes, and clues while editing images.
-- First-time images can still receive their per-image quiz text-area mask before saving.
-- Backups now include edited custom images and course-image edit overrides.
-- 1.8.5 crop fix: the crop selection box is now anchored to the displayed image itself, so the saved crop exactly matches the selected area.
-- Updated service-worker cache so GitHub Pages loads the corrected version.
-
-Previous 1.8.3 functionality is preserved, including the Species Library landing page, family grouping, per-image quiz masks, Google Photos import, and image management.
-
-
-VERSION 1.8.6
-- Reduced image-library thumbnail/card size for a more compact species image management view.
-- Reduced species-library thumbnails and gallery image heights.
-- Full-size image viewing remains available through the lightbox.
-
-
-VERSION 1.8.7 — GOOGLE PHOTOS READY
-- Preconfigured the Google Photos Picker OAuth Client ID for the Mammal Vault GitHub Pages origin.
-- Uses the Google Photos Picker API and the required photospicker.mediaitems.readonly scope.
-- The Google Photos Client ID is prefilled in Settings; it can still be changed there if needed.
-- Existing Google Photos import behavior is preserved: selected photos are copied into this browser's local Vault storage.
-- No Google password or client secret is stored in the site.
-
-
-VERSION 1.8.8 — GOOGLE PHOTOS PRIVACY WORDING
-- Renamed the import action to “Add from Google Photos.”
-- Added clear privacy guidance: search for the animal/species and select 1–2 images.
-- Clarified that only photos explicitly selected in the Google Photos Picker are imported into the Vault.
-- Updated Settings wording to distinguish the Google Photos Picker from importing the full gallery.
-- Preserves all 1.8.7 Google Photos functionality and existing user data/images.
+Preserved user data: data.js, embedded_images.js, and images/ are intentionally NOT included. Extract this ZIP before uploading the included files to the repository root.
