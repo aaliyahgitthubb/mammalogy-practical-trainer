@@ -1,5 +1,9 @@
-Mammalogy GitHub Update 1.8.9
+The Mammal Vault v1.9.2
 
-Fixes Google Photos Picker selection timing behavior. The Vault now checks the session immediately, uses Google’s polling configuration, re-checks when you return to the tab, removes the artificial 10-minute cap, and cleans up completed/expired sessions.
+- Moved Image Categories from Settings to the Manage Species & Images page.
+- Added the Image Categories manager to the Species Library and individual species image-management views.
+- Custom image categories can be added or removed without leaving Manage Species & Images.
+- Existing image-tag dropdowns now use the full custom category list instead of only the three built-in categories.
+- Existing Google Photos/custom-category functionality from v1.9.1 is preserved.
 
-Preserved user data: data.js, embedded_images.js, and images/ are intentionally NOT included. Extract this ZIP before uploading the included files to the repository root.
+UPLOAD: Extract this ZIP before uploading. Replace only the included files. Do NOT delete or replace data.js, embedded_images.js, or images/.
