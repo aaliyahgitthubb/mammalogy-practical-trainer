@@ -1,1 +1,1 @@
-{"version":"1.6.0","released":"2026-09-20","notes":"Custom categories/tags plus customizable drag-and-drop home dashboard with HEX colors, background images, image blocks, galleries, button images, live saved layout, and local customization storage."}
+{"version":"1.7.1","released":"2026-09-21","notes":"Navigation/button reliability fix: explicitly loads embedded_images.js, safely falls back to image paths, exposes app controls globally for inline handlers, and fixes Smart Review/Favorites species targeting."}

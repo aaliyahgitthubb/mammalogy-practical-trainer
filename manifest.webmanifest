@@ -1,9 +1,9 @@
 {
-  "name":"Mammalogy Practical Trainer",
-  "short_name":"Mammalogy Trainer",
+  "name":"The Mammal Vault: Mammalogy Practical Companion",
+  "short_name":"The Mammal Vault",
   "start_url":"./",
   "display":"standalone",
   "background_color":"#f5f7fa",
   "theme_color":"#243447",
-  "description":"Mammalogy specimen practical and species study trainer."
+  "description":"The Mammal Vault: an interactive mammalogy practical and species study companion."
 }

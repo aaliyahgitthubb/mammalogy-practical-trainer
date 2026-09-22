@@ -86,13 +86,13 @@ async function refreshStudyData(){
 }
 
 function allImages(s){return[
-  ...s.images.map((im,i)=>({id:`source:${s.id}:${i}`,speciesId:s.id,file:im.file,data:(SOURCE_IMAGE_DATA[im.file]||`images/${im.file}`),viewTypes:state.tagOverrides[`source:${s.id}:${i}`]||im.viewTypes||['mixed'],custom:false})),
+  ...s.images.map((im,i)=>({id:`source:${s.id}:${i}`,speciesId:s.id,file:im.file,data:((typeof SOURCE_IMAGE_DATA!=='undefined'&&SOURCE_IMAGE_DATA&&SOURCE_IMAGE_DATA[im.file])||`images/${im.file}`),viewTypes:state.tagOverrides[`source:${s.id}:${i}`]||im.viewTypes||['mixed'],custom:false})),
   ...state.customImages.filter(x=>x.speciesId===s.id).map(x=>({...x,custom:true,data:x.dataUrl}))
 ]}
 function eligible(s,filter){const a=allImages(s);return filter==='all'?a:a.filter(x=>(x.viewTypes||[]).includes(filter))}
 function modeLabel(){return({full:'Full Practical',scientific:'Scientific Name',family:'Family',skull:'Skull / Teeth Focus',skin:'Skin / Whole Focus'})[state.mode]}
 function weightedSpecies(){
-  let a=[...speciesList()];
+  let a=state.sessionPlan?.length?state.sessionPlan.map(speciesById).filter(Boolean):[...speciesList()];
   if(state.mode==='family') a=a.filter(s=>s.family);
   if(state.focusMissed){
     const p=loadProgress(),w=[];
@@ -107,7 +107,15 @@ function pickQuestion(){
   for(let i=0;i<30;i++){const s=weightedSpecies(),a=eligible(s,filter);if(a.length){state.lastSpecies=s;return{species:s,image:a[Math.floor(Math.random()*a.length)]}}}
   return null
 }
-function setScreen(x){state.screen=x;render()}
+function setScreen(x){
+  state.screen=x;
+  try{render()}
+  catch(err){
+    console.error('Mammal Vault navigation error:',err);
+    const app=$('app');
+    if(app) app.innerHTML=shell('Something went wrong',`<div class="panel"><h2>This section could not load.</h2><p>${esc(err?.message||err)}</p><div class="button-row"><button class="primary" onclick="setScreen('home')">Return Home</button><button onclick="location.reload()">Reload Site</button></div></div>`);
+  }
+}
 function startQuiz(mode){
   const keepPlan=!!state.keepPlan;state.keepPlan=false;if(!keepPlan)state.sessionPlan=null;
   state.mode=mode;state.answered=false;state.session={q:0,correct:0,points:0,totalPoints:0};state.lastSpecies=null;state.mystery=false;
@@ -500,6 +508,24 @@ async function importBackup(file){
     await refreshStudyData();loadTags();alert('Backup imported successfully.');render()
   }catch(e){alert('Could not import that backup.')}
 }
+
+// Public API for GitHub Pages / inline event handlers.
+Object.assign(window,{
+  state,
+  setScreen,startQuiz,nextQuestion,checkAnswer,showAnswer,
+  startDailyChallenge,startSurprise,startMystery,startSmartReview,startFavorites,
+  openStudySpecies,setStudySpecies,studyNext,studyPrev,shuffleStudyCards,
+  openStudyNewCard,openStudyEditCard,submitCardEditor,cancelCardEditor,
+  saveCard,editCard,deleteCard,editSpeciesInfo,
+  handlePaste,handleFiles,saveImageFile,removeCustomImage,setImageTag,
+  toggleFavorite,openLightbox,closeLightbox,
+  enableAllFeatures,disableOptionalFeatures,setFeature,
+  addSpeciesFromForm,resetProgress,exportBackup,triggerImportBackup,importBackup,
+  changeTheme,resetHomeCustomization,addHomeBlock,removeHomeBlock,updateHomeBlock,
+  handleHomeImages,setHomeBackground,clearHomeBackground,deleteHomeImage,
+  saveQuizSetting,toggleCustomCategory,addEditorTag,removeEditorTag,
+  render,filterSpeciesList
+});
 
 function boot(){
   loadTags();state.features=loadFeatures();state.favorites=loadFavorites();state.homeConfig=loadHomeConfig();const s=loadSettings();state.length=Number(s.length||20);state.focusMissed=!!s.focusMissed;
