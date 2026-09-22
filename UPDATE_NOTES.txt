@@ -1,4 +1,4 @@
-The Mammal Vault — Update 1.8.4
+The Mammal Vault — Update 1.8.5
 
 Upload/replace these files in the existing GitHub Pages repository:
 - index.html
@@ -11,6 +11,7 @@ Upload/replace these files in the existing GitHub Pages repository:
 Do NOT delete data.js, embedded_images.js, or the images folder.
 
 1.8.4 — Integrated Image Editor
+
 - Added an integrated image editor under Manage Species & Images.
 - Edit image tools include crop, square crop, 90° rotation, horizontal/vertical flip, brightness, contrast, saturation, and output resize.
 - Editing creates an edited copy and preserves the original image.
@@ -21,6 +22,7 @@ Do NOT delete data.js, embedded_images.js, or the images folder.
 - First-time image editing preserves the species name, scientific name, family, notes, and clues while editing images.
 - First-time images can still receive their per-image quiz text-area mask before saving.
 - Backups now include edited custom images and course-image edit overrides.
-- Updated service-worker cache so GitHub Pages loads the new version.
+- 1.8.5 crop fix: the crop selection box is now anchored to the displayed image itself, so the saved crop exactly matches the selected area.
+- Updated service-worker cache so GitHub Pages loads the corrected version.
 
 Previous 1.8.3 functionality is preserved, including the Species Library landing page, family grouping, per-image quiz masks, Google Photos import, and image management.
