@@ -1,4 +1,4 @@
-The Mammal Vault — Update 1.8.5
+The Mammal Vault — Update 1.8.7
 
 Upload/replace these files in the existing GitHub Pages repository:
 - index.html
@@ -32,3 +32,11 @@ VERSION 1.8.6
 - Reduced image-library thumbnail/card size for a more compact species image management view.
 - Reduced species-library thumbnails and gallery image heights.
 - Full-size image viewing remains available through the lightbox.
+
+
+VERSION 1.8.7 — GOOGLE PHOTOS READY
+- Preconfigured the Google Photos Picker OAuth Client ID for the Mammal Vault GitHub Pages origin.
+- Uses the Google Photos Picker API and the required photospicker.mediaitems.readonly scope.
+- The Google Photos Client ID is prefilled in Settings; it can still be changed there if needed.
+- Existing Google Photos import behavior is preserved: selected photos are copied into this browser's local Vault storage.
+- No Google password or client secret is stored in the site.
