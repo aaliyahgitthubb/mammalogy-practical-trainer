@@ -308,6 +308,49 @@ function renderResults(app){
   `);
 }
 
+function syncCardEditorDraft(){
+  if(!state.editor)return;
+  const fields=['cardSpecies','cardCategory','customCategory','cardFront','cardBack'];
+  fields.forEach(id=>{const el=$(id);if(el)state.editor[id.replace('card','').replace(/^./,m=>m.toLowerCase())]=el.value});
+  state.editor.speciesId=$('cardSpecies')?.value||state.editor.speciesId;
+  state.editor.category=$('cardCategory')?.value||state.editor.category;
+  if(state.editor.category==='__custom__')state.editor.category=$('customCategory')?.value.trim()||'Custom';
+  state.editor.customCategory=$('customCategory')?.value.trim()||'';
+  state.editor.front=$('cardFront')?.value||state.editor.front||'';
+  state.editor.back=$('cardBack')?.value||state.editor.back||'';
+  state.editor.tags=selectedEditorTags();
+}
+function cardEditorSpeciesChanged(id){syncCardEditorDraft();state.editor.speciesId=id;state.editor.imageId='';render()}
+function selectEditorImage(id){syncCardEditorDraft();state.editor.imageId=id;render()}
+function setEditorImagePlacement(value){syncCardEditorDraft();state.editor.imagePlacement=value;render()}
+function editorSpeciesImages(){
+  const sp=speciesById(state.editor?.speciesId);
+  return sp?allImages(sp):[];
+}
+function cardImage(c){
+  if(!c?.imageId)return null;
+  const sp=speciesById(c.speciesId);
+  return sp?allImages(sp).find(i=>i.id===c.imageId)||null:null;
+}
+function cardImageMarkup(c,extraClass=''){
+  const im=cardImage(c); if(!im)return '';
+  return `<div class="flash-image ${extraClass}"><img src="${esc(im.data)}" alt="${esc(speciesById(c.speciesId)?.common||'Species image')}" onclick="event.stopPropagation();openLightbox('${esc(im.data)}')"></div>`;
+}
+function flashDeckCards(cards){
+  const deck=[];
+  cards.forEach(c=>{
+    if(c.imagePlacement==='separate'&&c.imageId){
+      deck.push({...c,__imageOnly:true});
+    }
+    deck.push(c);
+  });
+  return deck;
+}
+function filteredFlashDeckCards(){
+  const base=filteredStudyCards();
+  return flashDeckCards(base);
+}
+
 function renderStudy(app){
   if(!speciesList().length){app.innerHTML=shell(subjectTitle(),`<div class="panel empty-workspace"><h2>${currentSubject().icon} Your ${currentSubject().name} workspace is ready.</h2><p>No species have been added yet. Add your first species and then add images and study cards.</p><div class="button-row"><button class="primary" onclick="setScreen('addSpecies')">+ Add First Species</button><button onclick="setScreen('hub')">Class Trainer Hub</button></div></div>`);return}
   if(!state.selectedSpeciesId) state.selectedSpeciesId=speciesList()[0].id;
@@ -316,29 +359,27 @@ function renderStudy(app){
   const allStudyCards=cardsFor(s.id);
   const activeTag=state.studyTagFilter||'';
   const filteredCards=activeTag?allStudyCards.filter(x=>(x.tags||[]).includes(activeTag)):allStudyCards;
-  const c=filteredCards.length?filteredCards[state.studyIndex%filteredCards.length]:null;
-  const cardPanel=state.studyMode==='flash' && c ? `
-    <div class="flashcard" onclick="state.studyFlipped=!state.studyFlipped;render()">
-      <div class="flash-label">${state.studyFlipped?'ANSWER':'QUESTION'}</div>
-      <div class="flash-text">${esc(state.studyFlipped?c.back:c.front)}</div>
-      <div class="flash-tags">${(c.tags||[]).map(t=>`<span class="tag">${esc(t)}</span>`).join('')}</div>
-      <div class="flash-hint">Click card to flip</div>
-    </div>
-    <div class="flash-controls"><button onclick="studyPrev()">← Previous</button><span>${state.studyIndex+1} / ${filteredCards.length}</span><button onclick="studyNext()">Next →</button></div>
-  ` : filteredCards.length ? filteredCards.map(c=>`<div class="study-card"><div><span class="tag">${esc(c.category||'General')}</span><h4>${esc(c.front)}</h4><div class="tag-row">${(c.tags||[]).map(t=>`<span class="tag secondary">${esc(t)}</span>`).join('')}</div></div><div class="card-answer">${esc(c.back)}</div><div class="card-actions"><button onclick="openStudyEditCard('${c.id}')">Edit</button><button class="danger" onclick="deleteCard('${c.id}')">Delete</button></div></div>`).join('') : `<div class="empty">${activeTag?`No cards tagged “${esc(activeTag)}”.`:`No study cards yet. Add your first card for ${esc(s.common)}.`}</div>`;
-  app.innerHTML=shell(subjectTitle(),`
-    <div class="study-layout">
-      <aside class="species-sidebar"><input class="search" id="speciesSearch" placeholder="Search species..." oninput="filterSpeciesList()"><div id="speciesList">${list}</div></aside>
-      <section class="study-main">
-        <div class="species-heading"><div><h2>${esc(s.common)} ${state.favorites.includes(s.id)?'⭐':''}</h2><p>${sciHtml(s.scientific)} · ${s.family?esc(s.family):'Family not specified'}</p><div class="mastery-ring" style="--p:${masteryPercent(s.id)}%"><span>${masteryPercent(s.id)}%</span></div></div><div class="button-row"><button onclick="openStudyNewCard()">+ Add Card</button><button onclick="toggleFavorite('${s.id}')">${state.favorites.includes(s.id)?'★ Unfavorite':'☆ Favorite'}</button><button onclick="editSpeciesInfo()">Edit Notes / Clues</button><button onclick="openManageLibrary()">Manage Images</button><button onclick="setScreen('addSpecies')">+ Add Species</button></div></div>
-        ${featureOn('galleries')?`<div class="species-gallery panel"><div class="gallery-head"><h3>🖼️ Specimen Gallery</h3><button onclick="openManageLibrary()">Manage Images</button></div><div class="vault-gallery">${allImages(s).slice(0,6).map(i=>`<img src="${esc(i.data)}" alt="${esc(s.common)}" onclick="openLightbox('${esc(i.data)}')">`).join('')}</div>${allImages(s).length?`<small>${allImages(s).length} image${allImages(s).length===1?'':'s'} in this species collection.</small>`:'<p class="muted">Add specimen images in Images.</p>'}</div>`:''}<div class="study-tabs"><button class="${state.studyMode==='browse'?'active':''}" onclick="state.studyMode='browse';render()">Browse Cards</button><button class="${state.studyMode==='flash'?'active':''}" onclick="state.studyMode='flash';state.studyIndex=0;state.studyFlipped=false;render()">Flashcard Mode</button></div>
-        ${info.notes?`<div class="notes panel"><h3>My Species Notes</h3><div>${esc(info.notes).replace(/\n/g,'<br>')}</div></div>`:''}${info.clues&&featureOn('clues')?`<div class="notes panel clue-panel"><h3>🔎 My Identification Clues</h3><div>${esc(info.clues).replace(/\n/g,'<br>')}</div></div>`:''}
-        <div class="cards-header"><h3>${state.studyMode==='flash'?'Flashcards':'Study Cards'} <span>${filteredCards.length}${activeTag?` / ${cards.length}`:''}</span></h3><div class="filter-row"><label>Filter by tag<select id="studyTagFilter" onchange="state.studyTagFilter=this.value;state.studyIndex=0;state.studyFlipped=false;render()"><option value="">All tags</option>${[...new Set(state.cards.flatMap(x=>x.tags||[]))].sort().map(t=>`<option value="${esc(t)}" ${t===activeTag?'selected':''}>${esc(t)}</option>`).join('')}</select></label>${state.studyMode==='flash'&&filteredCards.length?`<button onclick="shuffleStudyCards()">Shuffle</button>`:''}</div></div>
-        ${cardPanel}
-      </section>
-    </div>
-  `);
+  const flashDeck=flashDeckCards(filteredCards);
+  const c=flashDeck.length?flashDeck[state.studyIndex%flashDeck.length]:null;
+  let cardPanel='';
+  if(state.studyMode==='flash'&&c){
+    const flipped=state.studyFlipped;
+    let label=flipped?'ANSWER':'QUESTION';
+    let text=flipped?c.back:c.front;
+    let image='';
+    if(c.__imageOnly){
+      label=flipped?'ANSWER':'IMAGE';
+      image=cardImageMarkup(c,'image-only');
+      text=flipped?`${speciesById(c.speciesId)?.common||''}\n${speciesById(c.speciesId)?.scientific||''}\n${speciesById(c.speciesId)?.family||'Family not specified'}`:'';
+    }else if(c.imagePlacement==='front'&&!flipped){image=cardImageMarkup(c,'front-image')}
+    else if(c.imagePlacement==='back'&&flipped){image=cardImageMarkup(c,'back-image')}
+    cardPanel=`<div class="flashcard ${c.__imageOnly?'image-flashcard':''}" onclick="state.studyFlipped=!state.studyFlipped;render()"><div class="flash-label">${label}</div>${image}<div class="flash-text">${esc(text).replace(/\n/g,'<br>')}</div><div class="flash-tags">${(c.tags||[]).map(t=>`<span class="tag">${esc(t)}</span>`).join('')}</div><div class="flash-hint">Click card to flip</div></div><div class="flash-controls"><button onclick="studyPrev()">← Previous</button><span>${state.studyIndex+1} / ${flashDeck.length}</span><button onclick="studyNext()">Next →</button></div>`;
+  } else {
+    cardPanel=filteredCards.length?filteredCards.map(c=>`<div class="study-card"><div><span class="tag">${esc(c.category||'General')}</span><h4>${esc(c.front)}</h4>${c.imageId?`<small class="muted">🖼️ Image: ${esc(c.imagePlacement==='separate'?'separate card':c.imagePlacement)}</small>`:''}<div class="tag-row">${(c.tags||[]).map(t=>`<span class="tag secondary">${esc(t)}</span>`).join('')}</div></div><div class="card-answer">${esc(c.back)}</div><div class="card-actions"><button onclick="openStudyEditCard('${c.id}')">Edit</button><button class="danger" onclick="deleteCard('${c.id}')">Delete</button></div></div>`).join(''):`<div class="empty">${activeTag?`No cards tagged “${esc(activeTag)}”.`:`No study cards yet. Add your first card for ${esc(s.common)}.`}</div>`;
+  }
+  app.innerHTML=shell(subjectTitle(),`<div class="study-layout"><aside class="species-sidebar"><input class="search" id="speciesSearch" placeholder="Search species..." oninput="filterSpeciesList()"><div id="speciesList">${list}</div></aside><section class="study-main"><div class="species-heading"><div><h2>${esc(s.common)} ${state.favorites.includes(s.id)?'⭐':''}</h2><p>${sciHtml(s.scientific)} · ${s.family?esc(s.family):'Family not specified'}</p><div class="mastery-ring" style="--p:${masteryPercent(s.id)}%"><span>${masteryPercent(s.id)}%</span></div></div><div class="button-row"><button onclick="openStudyNewCard()">+ Add Card</button><button onclick="toggleFavorite('${s.id}')">${state.favorites.includes(s.id)?'★ Unfavorite':'☆ Favorite'}</button><button onclick="editSpeciesInfo()">Edit Notes / Clues</button><button onclick="openManageLibrary()">Manage Images</button><button onclick="setScreen('addSpecies')">+ Add Species</button></div></div>${featureOn('galleries')?`<div class="species-gallery panel"><div class="gallery-head"><h3>🖼️ Specimen Gallery</h3><button onclick="openManageLibrary()">Manage Images</button></div><div class="vault-gallery">${allImages(s).slice(0,6).map(i=>`<img src="${esc(i.data)}" alt="${esc(s.common)}" onclick="openLightbox('${esc(i.data)}')">`).join('')}</div>${allImages(s).length?`<small>${allImages(s).length} image${allImages(s).length===1?'':'s'} in this species collection.</small>`:'<p class="muted">Add specimen images in Images.</p>'}</div>`:''}<div class="study-tabs"><button class="${state.studyMode==='browse'?'active':''}" onclick="state.studyMode='browse';render()">Browse Cards</button><button class="${state.studyMode==='flash'?'active':''}" onclick="state.studyMode='flash';state.studyIndex=0;state.studyFlipped=false;render()">Flashcard Mode</button></div>${info.notes?`<div class="notes panel"><h3>My Species Notes</h3><div>${esc(info.notes).replace(/\n/g,'<br>')}</div></div>`:''}${info.clues&&featureOn('clues')?`<div class="notes panel clue-panel"><h3>🔎 My Identification Clues</h3><div>${esc(info.clues).replace(/\n/g,'<br>')}</div></div>`:''}<div class="cards-header"><h3>${state.studyMode==='flash'?'Flashcards':'Study Cards'} <span>${state.studyMode==='flash'?flashDeck.length:filteredCards.length}${activeTag?` / ${cards.length}`:''}</span></h3><div class="filter-row"><label>Filter by tag<select id="studyTagFilter" onchange="state.studyTagFilter=this.value;state.studyIndex=0;state.studyFlipped=false;render()"><option value="">All tags</option>${[...new Set(state.cards.flatMap(x=>x.tags||[]))].sort().map(t=>`<option value="${esc(t)}" ${t===activeTag?'selected':''}>${esc(t)}</option>`).join('')}</select></label>${state.studyMode==='flash'&&flashDeck.length?`<button onclick="shuffleStudyCards()">Shuffle</button>`:''}</div></div>${cardPanel}</section></div>`);
 }
+
 function filterSpeciesList(){
   const q=normalize($('speciesSearch')?.value||'');
   document.querySelectorAll('.species-list-btn').forEach(b=>b.style.display=normalize(b.textContent).includes(q)?'':'none')
@@ -349,7 +390,7 @@ function studyPrev(){const cards=filteredStudyCards();if(cards.length){state.stu
 function shuffleStudyCards(){const cards=filteredStudyCards();if(cards.length){state.studyIndex=Math.floor(Math.random()*cards.length);state.studyFlipped=false;render()}}
 
 function openStudyNewCard(){
-  state.editor={id:null,speciesId:selectedSpecies().id,front:'',back:'',category:'General',customCategory:'',tags:[]};
+  state.editor={id:null,speciesId:selectedSpecies().id,front:'',back:'',category:'General',customCategory:'',tags:[],imageId:'',imagePlacement:'none'};
   state.screen='cardEditor';render();
 }
 function openStudyEditCard(id){
@@ -369,12 +410,12 @@ async function submitCardEditor(){
   const tags=selectedEditorTags();
   if(!speciesId||!front||!back){$('editorError').textContent='Please fill in the species, front, and back.';return}
   if(categoryChoice==='__custom__'&&!customCategory){$('editorError').textContent='Enter a custom category or choose an existing category.';return}
-  await saveCard({...state.editor,speciesId,front,back,category,customCategory,tags,order:state.editor.order??cardsFor(speciesId).length});
+  await saveCard({...state.editor,speciesId,front,back,category,customCategory,tags,imageId:state.editor.imageId||'',imagePlacement:state.editor.imagePlacement||'none',order:state.editor.order??cardsFor(speciesId).length});
   state.editor=null;state.selectedSpeciesId=speciesId;state.screen='study';
 }
 function cancelCardEditor(){state.editor=null;state.screen='study';render()}
 async function saveCard(o){
-  const card={id:o.id||('card-'+Date.now()+'-'+Math.random().toString(36).slice(2)),speciesId:o.speciesId,front:o.front,back:o.back,category:o.category||'General',customCategory:o.customCategory||'',tags:Array.isArray(o.tags)?o.tags:parseTags(o.tags),order:o.order??0};
+  const card={id:o.id||('card-'+Date.now()+'-'+Math.random().toString(36).slice(2)),speciesId:o.speciesId,front:o.front,back:o.back,category:o.category||'General',customCategory:o.customCategory||'',tags:Array.isArray(o.tags)?o.tags:parseTags(o.tags),order:o.order??0,imageId:o.imageId||'',imagePlacement:['none','separate','front','back'].includes(o.imagePlacement)?o.imagePlacement:'none'};
   await dbPut(CARD_STORE,card);await refreshStudyData();
 }
 function editCard(id){openStudyEditCard(id)}
@@ -383,249 +424,23 @@ async function deleteCard(id){if(!confirm('Delete this study card?'))return;awai
 async function editSpeciesInfo(){const s=selectedSpecies(),old=state.speciesInfo[s.id]||{};const notes=prompt(`Your notes for ${s.common}:`,old.notes||'');if(notes===null)return;const clues=prompt(`Your identification clues for ${s.common}:`,old.clues||'');if(clues===null)return;await dbPut(INFO_STORE,{speciesId:s.id,notes,clues});await refreshStudyData();render()}
 
 function renderCardEditor(app){
-  const e=state.editor||{speciesId:selectedSpecies().id,front:'',back:'',category:'General',customCategory:'',tags:[]};
+  const e=state.editor||{speciesId:selectedSpecies().id,front:'',back:'',category:'General',customCategory:'',tags:[],imageId:'',imagePlacement:'none'};
   const speciesOptions=speciesList().map(x=>`<option value="${x.id}" ${x.id===e.speciesId?'selected':''}>${esc(x.common)} — ${sciHtml(x.scientific)}</option>`).join('');
   const cats=['General','Identification','Anatomy','Skull / Teeth','Dentition','Pelage / Skin','Habitat','Diet','Behavior','Taxonomy','Other'];
   const isCustomCat=!!e.customCategory || !cats.includes(e.category||'General');
-  const catOptions=cats.map(x=>`<option value="${esc(x)}" ${!isCustomCat&&x===(e.category||'General')?'selected':''}>${esc(x)}</option>`).join('')+`<option value="__custom__" ${isCustomCat?'selected':''}>Custom…</option>`;
-  const tags=Array.isArray(e.tags)?e.tags:parseTags(e.tags);
+  const catOptions=cats.map(x=>`<option value="${esc(x)}" ${!isCustomCat&&x===e.category?'selected':''}>${esc(x)}</option>`).join('')+`<option value="__custom__" ${isCustomCat?'selected':''}>Custom…</option>`;
   const suggested=[...new Set(state.cards.flatMap(x=>x.tags||[]))].sort();
-  const previewFront=esc(e.front||'Your question will appear here.');
-  const previewBack=esc(e.back||'Your answer will appear here.');
-  const bankSpeciesOptions=`<option value="">All species</option>`+speciesList().map(x=>`<option value="${esc(x.id)}" ${x.id===state.cardBankSpecies?'selected':''}>${esc(x.common)}</option>`).join('');
-  const bankCards=state.cards.slice().sort((a,b)=>(speciesById(a.speciesId)?.common||'').localeCompare(speciesById(b.speciesId)?.common||'') || String(a.front||'').localeCompare(String(b.front||'')));
-  const bankRows=bankCards.length?bankCards.map(c=>{const sp=speciesById(c.speciesId),q=normalize(`${c.front||''} ${c.back||''} ${c.category||''} ${(c.tags||[]).join(' ')}`);return `<div class="question-bank-row" data-bank-search="${esc(q)}" data-bank-species="${esc(c.speciesId)}"><div class="question-bank-main"><div class="question-bank-meta"><strong>${esc(sp?.common||'Unknown species')}</strong><span class="tag">${esc(c.category||'General')}</span></div><div class="question-bank-front">${esc(c.front||'')}</div><div class="question-bank-back">${esc(c.back||'')}</div>${(c.tags||[]).length?`<div class="tag-row">${c.tags.map(t=>`<span class="tag secondary">${esc(t)}</span>`).join('')}</div>`:''}</div><div class="card-actions"><button type="button" onclick="openStudyEditCard('${esc(c.id)}')">Edit</button><button type="button" class="danger" onclick="deleteCard('${esc(c.id)}');render()">Delete</button></div></div>`}).join(''):`<div class="empty">No flashcards have been created yet.</div>`;
-  app.innerHTML=shell(e.id?'Edit Study Card':'Create Study Card',`
-    <div class="editor-layout">
-      <section class="panel editor-form">
-        <div class="form-grid">
-          <label>Species<select id="cardSpecies">${speciesOptions}</select></label>
-          <label>Category<select id="cardCategory">${catOptions}</select></label>
-        </div>
-        <div id="customCategoryWrap" class="custom-field" style="display:${isCustomCat?'block':'none'}">
-          <label>Custom category<input id="customCategory" value="${esc(e.customCategory||(!cats.includes(e.category||'General')?e.category:'')||'')}" placeholder="e.g., Exam Review, Measurements, Comparison"></label>
-        </div>
-        <label>Front / Question<textarea id="cardFront" rows=8 placeholder="Example: What family does the eastern wood rat belong to?">${esc(e.front)}</textarea></label>
-        <label>Back / Answer<textarea id="cardBack" rows=8 placeholder="Example: Cricetidae">${esc(e.back)}</textarea></label>
-        <div class="tag-editor">
-          <div class="tag-editor-title">Tags</div>
-          <div class="tag-input-row"><input id="tagInput" list="tagSuggestions" placeholder="Type a tag, then click Add (or press Enter)"><datalist id="tagSuggestions">${suggested.map(t=>`<option value="${esc(t)}">`).join('')}</datalist><button type="button" onclick="addEditorTag()">Add tag</button></div>
-          <div id="editorTags" class="tag-chip-list">${tags.map(t=>`<span class="tag-chip" data-tag="${esc(t)}">${esc(t)} <button type="button" aria-label="Remove ${esc(t)}" onclick="removeEditorTag(this)">×</button></span>`).join('')}</div>
-          <div class="muted">Use tags to organize cards such as <b>skull</b>, <b>dentition</b>, <b>family</b>, <b>exam</b>, or any custom label you want. Tags are saved with the card.</div>
-        </div>
-        <div id="editorError" class="editor-error"></div>
-        <div class="button-row"><button class="primary" onclick="submitCardEditor()">Save Card</button><button onclick="cancelCardEditor()">Cancel</button></div>
-      </section>
-      <section class="panel live-preview"><h2>Full Card Preview</h2>
-        <div class="preview-card"><div class="preview-label">FRONT</div><div id="previewFront" class="preview-text">${previewFront}</div><div class="preview-divider"></div><div class="preview-label">BACK</div><div id="previewBack" class="preview-text">${previewBack}</div><div class="preview-species"><span class="preview-base-species">${esc(speciesById(e.speciesId)?.common||'')} ·</span> <span id="previewCategory">${esc(e.category||'General')}</span><div id="previewTags" class="tag-row">${tags.map(t=>`<span class="tag secondary">${esc(t)}</span>`).join('')}</div></div></div>
-        <p class="muted">The preview updates as you type. The front and back stay visible together while you build the card.</p>
-      </section>
-    </div>
-    <section class="panel question-bank-panel">
-      <div class="section-head"><div><h2>📚 Flashcard Question Bank</h2><p class="muted">All of your existing flashcards are shown here while you create or edit a card.</p></div><strong id="questionBankCount">${bankCards.length} card${bankCards.length===1?'':'s'}</strong></div>
-      <div class="question-bank-filters"><input id="questionBankSearch" value="${esc(state.cardBankQuery||'')}" placeholder="Search questions, answers, categories, or tags..." oninput="state.cardBankQuery=this.value;filterCardBank()"><select id="questionBankSpecies" onchange="state.cardBankSpecies=this.value;filterCardBank()">${bankSpeciesOptions}</select></div>
-      <div id="questionBankList" class="question-bank-list">${bankRows}</div>
-    </section>
-  `);
-  ['cardFront','cardBack','cardSpecies','cardCategory','customCategory'].forEach(id=>$(id)?.addEventListener('input',updateCardPreview));
-  $('cardCategory')?.addEventListener('change',toggleCustomCategory);
-  $('tagInput')?.addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();addEditorTag()}});
+  const tags=e.tags||[];
+  const imgs=editorSpeciesImages();
+  const selectedImg=imgs.find(i=>i.id===e.imageId);
+  const imageChoices=imgs.length?imgs.map(i=>`<button type="button" class="image-choice ${i.id===e.imageId?'selected':''}" onclick="selectEditorImage('${esc(i.id)}')"><img src="${esc(i.data)}" alt="${esc(speciesById(e.speciesId)?.common||'Species image')}"><span>${esc((i.viewTypes||[]).map(t=>(imageTypes().find(x=>x.id===t)||{}).label||t).join(', ')||'Image')}</span>${i.id===e.imageId?'<b>✓ Selected</b>':''}</button>`).join(''):`<div class="empty">No images are in this species library yet. Add an image first in Manage Species & Images.</div>`;
+  const placement=e.imagePlacement||'none';
+  const previewImage=selectedImg?`<img src="${esc(selectedImg.data)}" alt="Selected species image">`:'';
+  const previewFront=placement==='front'&&selectedImg?`${previewImage}<div>${esc(e.front||'')}</div>`:esc(e.front||'');
+  const previewBack=placement==='back'&&selectedImg?`${esc(e.back||'')} ${previewImage}`:esc(e.back||'');
+  const bankCards=state.cards.slice().sort((a,b)=>(a.order??0)-(b.order??0));
+  app.innerHTML=shell(e.id?'Edit Study Card':'Create Study Card',`<div class="editor-layout"><section class="panel editor-form"><div class="form-grid"><label>Species<select id="cardSpecies" onchange="cardEditorSpeciesChanged(this.value)">${speciesOptions}</select></label><label>Category<select id="cardCategory" onchange="state.editor.category=this.value;document.getElementById('customCategoryWrap').style.display=this.value==='__custom__'?'block':'none'">${catOptions}</select></label></div><div id="customCategoryWrap" class="custom-field" style="display:${isCustomCat?'block':'none'}"><label>Custom category<input id="customCategory" value="${esc(e.customCategory||(!cats.includes(e.category||'General')?e.category:'')||'')}" placeholder="e.g., Exam Review, Measurements, Comparison"></label></div><label>Front / Question<textarea id="cardFront" rows="8" placeholder="Example: What family does the eastern wood rat belong to?">${esc(e.front)}</textarea></label><label>Back / Answer<textarea id="cardBack" rows="8" placeholder="Example: Cricetidae">${esc(e.back)}</textarea></label><div class="flash-image-editor panel"><h3>🖼️ Image from Species Library</h3><label class="check-row"><input type="checkbox" ${e.imageId?'checked':''} onchange="if(this.checked){if(!state.editor.imageId&&editorSpeciesImages().length){state.editor.imageId=editorSpeciesImages()[0].id} }else{state.editor.imageId='';state.editor.imagePlacement='none'};render()"> <span>Include an image from this species' library</span></label>${e.imageId?`<div class="image-placement"><strong>Image placement:</strong><label><input type="radio" name="imagePlacement" value="none" ${placement==='none'?'checked':''} onchange="setEditorImagePlacement(this.value)"> No image</label><label><input type="radio" name="imagePlacement" value="separate" ${placement==='separate'?'checked':''} onchange="setEditorImagePlacement(this.value)"> Separate image card</label><label><input type="radio" name="imagePlacement" value="front" ${placement==='front'?'checked':''} onchange="setEditorImagePlacement(this.value)"> Front of card</label><label><input type="radio" name="imagePlacement" value="back" ${placement==='back'?'checked':''} onchange="setEditorImagePlacement(this.value)"> Back of card</label></div><div class="image-choice-grid">${imageChoices}</div>`:'<p class="muted">Check the box to choose an image from this species library. Image placement defaults to <b>No image</b>.</p>'}</div><div class="tag-editor"><div class="tag-editor-title">Tags</div><div class="tag-input-row"><input id="tagInput" list="tagSuggestions" placeholder="Type a tag, then click Add (or press Enter)"><datalist id="tagSuggestions">${suggested.map(t=>`<option value="${esc(t)}">`).join('')}</datalist><button type="button" onclick="addEditorTag()">Add tag</button></div><div id="editorTags" class="tag-chip-list">${tags.map(t=>`<span class="tag-chip" data-tag="${esc(t)}">${esc(t)} <button type="button" aria-label="Remove ${esc(t)}" onclick="removeEditorTag(this)">×</button></span>`).join('')}</div><div class="muted">Use tags to organize cards such as <b>skull</b>, <b>dentition</b>, <b>family</b>, <b>exam</b>, or any custom label you want.</div></div><div id="editorError" class="editor-error"></div><div class="button-row"><button class="primary" onclick="submitCardEditor()">Save Card</button><button onclick="cancelCardEditor()">Cancel</button></div></section><section class="panel live-preview"><h2>Full Card Preview</h2><div class="preview-card"><div class="preview-label">FRONT</div><div id="previewFront" class="preview-text">${previewFront}</div><div class="preview-divider"></div><div class="preview-label">BACK</div><div id="previewBack" class="preview-text">${previewBack}</div><div class="preview-species"><span class="preview-base-species">${esc(speciesById(e.speciesId)?.common||'')} ·</span> <span id="previewCategory">${esc(e.category||'General')}</span><div id="previewTags" class="tag-row">${tags.map(t=>`<span class="tag secondary">${esc(t)}</span>`).join('')}</div></div></div><p class="muted">The selected species image is stored with this card. Existing cards remain unchanged and default to no image.</p></section></div><section class="panel question-bank-panel"><div class="section-head"><div><h2>📚 Flashcard Question Bank</h2><p class="muted">All of your existing flashcards are shown here while you create or edit a card.</p></div><strong id="questionBankCount">${bankCards.length} card${bankCards.length===1?'':'s'}</strong></div><div class="question-bank-filters"><input id="questionBankSearch" value="${esc(state.cardBankQuery||'')}" placeholder="Search questions, answers, categories, tags..." oninput="filterCardBank()"><select id="questionBankSpecies" onchange="filterCardBank()"><option value="">All species</option>${speciesList().map(sp=>`<option value="${sp.id}">${esc(sp.common)}</option>`).join('')}</select></div><div id="questionBankList">${bankCards.map(c=>{const sp=speciesById(c.speciesId);return `<div class="question-bank-row" data-bank-search="${esc(`${c.front} ${c.back} ${c.category||''} ${(c.tags||[]).join(' ')}`)}" data-bank-species="${esc(c.speciesId)}"><div class="question-bank-main"><div class="question-bank-meta"><strong>${esc(sp?.common||'Unknown species')}</strong><span class="tag">${esc(c.category||'General')}</span>${c.imageId?'<span class="tag secondary">🖼️ Image</span>':''}</div><div class="question-bank-front">${esc(c.front||'')}</div><div class="question-bank-back">${esc(c.back||'')}</div></div><div class="card-actions"><button type="button" onclick="openStudyEditCard('${esc(c.id)}')">Edit</button><button type="button" class="danger" onclick="deleteCard('${esc(c.id)}');render()">Delete</button></div></div>`}).join('')||'<div class="empty">No flashcards have been created yet.</div>'}</div></section>`);
 }
-
-function filterCardBank(){
-  const q=normalize($('questionBankSearch')?.value||'');
-  const sp=$('questionBankSpecies')?.value||'';
-  let visible=0;
-  document.querySelectorAll('.question-bank-row').forEach(row=>{
-    const matchesQ=!q||normalize(row.dataset.bankSearch||'').includes(q);
-    const matchesSp=!sp||row.dataset.bankSpecies===sp;
-    const show=matchesQ&&matchesSp;
-    row.style.display=show?'':'none';
-    if(show)visible++;
-  });
-  const count=$('questionBankCount');
-  if(count)count.textContent=`${visible} card${visible===1?'':'s'}`;
-}
-
-function toggleCustomCategory(){
-  const custom=$('cardCategory')?.value==='__custom__';
-  const wrap=$('customCategoryWrap');if(wrap)wrap.style.display=custom?'block':'none';
-  updateCardPreview();
-}
-function addEditorTag(){
-  const input=$('tagInput');if(!input)return;
-  const values=parseTags(input.value);if(!values.length)return;
-  const current=selectedEditorTags();
-  values.forEach(t=>{if(!current.some(x=>x.toLowerCase()===t.toLowerCase()))current.push(t)});
-  renderEditorTags(current);input.value='';input.focus();updateCardPreview();
-}
-function removeEditorTag(btn){
-  const chip=btn.closest('.tag-chip');if(!chip)return;
-  chip.remove();updateCardPreview();
-}
-function renderEditorTags(tags){
-  const wrap=$('editorTags');if(!wrap)return;
-  wrap.innerHTML=tags.map(t=>`<span class="tag-chip" data-tag="${esc(t)}">${esc(t)} <button type="button" aria-label="Remove ${esc(t)}" onclick="removeEditorTag(this)">×</button></span>`).join('');
-}
-function updateCardPreview(){
-  const f=editorValue('cardFront'),b=editorValue('cardBack'),sid=editorValue('cardSpecies'),choice=editorValue('cardCategory');
-  const custom=editorValue('customCategory');
-  const cat=choice==='__custom__'?(custom||'Custom'):choice||'General';
-  if($('previewFront'))$('previewFront').textContent=f||'Your question will appear here.';
-  if($('previewBack'))$('previewBack').textContent=b||'Your answer will appear here.';
-  const sp=speciesById(sid);
-  const ps=document.querySelector('.preview-species');if(ps){const base=ps.querySelector('.preview-base-species');if(base)base.textContent=`${sp?.common||''} ·`; }
-  const pc=$('previewCategory');if(pc)pc.textContent=cat;
-  const pt=$('previewTags');if(pt)pt.innerHTML=selectedEditorTags().map(t=>`<span class="tag secondary">${esc(t)}</span>`).join('');
-}
-function imageCategoryManagerHtml(){
-  return `<section class="panel image-category-manager"><div class="section-head"><div><h3>Image Categories</h3><p class="muted">Create custom labels for the images in your species library. These categories appear in the image upload and tagging dropdowns.</p></div></div><div class="tag-input-row"><input id="newImageTypeName" placeholder="e.g., External Anatomy, Tracks, Dentition" onkeydown="if(event.key==='Enter'){event.preventDefault();addImageType()}"><button type="button" onclick="addImageType()">Add category</button></div><div class="tag-chip-list">${imageTypes().map(t=>DEFAULT_IMAGE_TYPES.some(x=>x.id===t.id)?`<span class="tag-chip">${esc(t.label)}</span>`:`<span class="tag-chip">${esc(t.label)} <button type="button" onclick="removeImageType('${esc(t.id)}')">×</button></span>`).join('')}</div></section>`
-}
-function renderManage(app){
-  const species=speciesList();
-  if(!species.length){app.innerHTML=shell('Manage Species & Images',`<div class="species-library-landing"><div class="library-hero panel"><div><p class="eyebrow">${esc(subjectTitle())}</p><h2>Species Library</h2><p class="muted">Organize your collection by family, then open a species to manage its images, notes, and quiz settings.</p></div><button class="primary" onclick="setScreen('addSpecies')">+ Add Species</button></div>${imageCategoryManagerHtml()}<div class="panel empty-workspace"><h3>Your library is empty</h3><p>Add your first species and its images to begin building this ${esc(currentSubject().name.toLowerCase())} collection.</p></div></div>`);return}
-  if(!state.selectedSpeciesId){
-    const groups={};
-    species.slice().sort((a,b)=>(a.family||'Unclassified').localeCompare(b.family||'Unclassified')||a.common.localeCompare(b.common)).forEach(x=>{const family=x.family?.trim()||'Unclassified';(groups[family]??=[]).push(x)});
-    const families=Object.keys(groups).sort((a,b)=>a.localeCompare(b));
-    const sections=families.map(f=>`<section class="family-library-section"><div class="family-library-heading"><h3>${esc(f)}</h3><span>${groups[f].length} species</span></div><div class="species-card-grid">${groups[f].map(x=>{const img=allImages(x)[0];return `<button class="species-library-card" onclick="setStudySpecies('${x.id}');render()"><div class="species-library-thumb">${img?`<img src="${esc(img.data)}" alt="">`:'<span>NO IMAGE</span>'}</div><div class="species-library-info"><strong>${esc(x.common)}</strong><em>${sciHtml(x.scientific)}</em></div></button>`}).join('')}</div></section>`).join('');
-    app.innerHTML=shell('Manage Species & Images',`<div class="species-library-landing"><div class="library-hero panel"><div><p class="eyebrow">${esc(subjectTitle())}</p><h2>Species Library</h2><p class="muted">Choose a species to view or edit its images and information.</p></div><button class="primary" onclick="setScreen('addSpecies')">+ Add Species</button></div>${imageCategoryManagerHtml()}<div class="library-toolbar"><input class="search" id="speciesLibrarySearch" placeholder="Search common or scientific name..." oninput="filterSpeciesLibrary()"><span class="muted">${species.length} species · ${families.length} families</span></div><div id="speciesLibraryGroups">${sections}</div></div>`);return;
-  }
-  const s=selectedSpecies(),imgs=allImages(s);
-  app.innerHTML=shell('Manage Species & Images',`
-    <div class="manage-detail-page">
-      <div class="detail-back-row"><button onclick="state.selectedSpeciesId=null;render()">← Back to Species Library</button></div>
-      ${imageCategoryManagerHtml()}
-      <section class="study-main">
-        <div class="species-heading"><div><h2>${esc(s.common)}</h2><p>${sciHtml(s.scientific)} · ${esc(s.family||'Unclassified')}</p></div><div class="button-row"><button onclick="setScreen('study')">Study this species</button></div></div>
-        <div class="paste-box" id="pasteBox" tabindex="0"><strong>Paste an image here</strong><span>Copy an image anywhere, then click here and press <b>Ctrl + V</b>.</span></div>
-        <div class="upload-row"><label class="file-button">Add image files<input id="imageFiles" type="file" accept="image/*" multiple onchange="handleFiles(this.files)"></label><button type="button" onclick="importGooglePhotosToSpecies()">📷 Add from Google Photos</button><select id="newImageType">${imageTypeOptions()}</select></div><p class="muted google-photos-help"><b>Google Photos privacy:</b> Search for the animal/species you want, then select 1–2 images. Only photos you select are imported into this Vault.</p>
-        <div class="image-grid">${imgs.map(i=>`<div class="image-admin"><img src="${esc(i.data)}" onclick="openLightbox('${esc(i.data)}')"><div class="image-admin-meta"><span>${i.custom?'Your image':'Course image'}${i.edited?' · Edited':''}</span><select onchange="setImageTag('${esc(i.id)}',this.value)">${imageTypeOptions((i.viewTypes||[])[0]||'mixed')}</select><button type="button" onclick="openImageEditor('${esc(i.id)}')">✏️ Edit image</button><button type="button" onclick="openImageMaskEditor('${esc(i.id)}')">${i.quizMask?'Edit quiz text area':'Set quiz text area'}</button>${i.edited?`<button type="button" onclick="resetImageEdit('${esc(i.id)}')">Reset image edit</button>`:''}${i.quizMask?`<button type="button" onclick="clearImageMask('${esc(i.id)}')">Clear quiz mask</button>`:''}${i.custom?`<button class="danger" onclick="removeCustomImage('${esc(i.id)}')">Delete</button>`:''}</div></div>`).join('')}</div>
-      </section>
-    </div>
-  `);
-  setTimeout(()=>{$('pasteBox')?.focus();$('pasteBox')?.addEventListener('paste',handlePaste)},0)
-}
-function filterSpeciesLibrary(){
-  const q=($('speciesLibrarySearch')?.value||'').trim().toLowerCase();
-  document.querySelectorAll('.family-library-section').forEach(section=>{
-    let visible=0;section.querySelectorAll('.species-library-card').forEach(card=>{const show=!q||card.textContent.toLowerCase().includes(q);card.style.display=show?'':'none';if(show)visible++});section.style.display=visible?'':'none';
-  });
-}
-function currentImageType(){return $('newImageType')?.value||'mixed'}
-async function handlePaste(e){
-  const items=[...(e.clipboardData?.items||[])];
-  const item=items.find(x=>x.type.startsWith('image/'));
-  if(!item)return;
-  const file=item.getAsFile(); if(file)await saveImageFile(file,currentImageType());
-}
-async function handleFiles(files){for(const f of files)await saveImageFile(f,currentImageType())}
-function imageEditorDefault(){return {rotation:0,flipX:false,flipY:false,brightness:100,contrast:100,saturation:100,crop:{x:0,y:0,w:100,h:100}}}
-function openImageEditor(id){
-  const im=imgsForSelectedSpecies().find(x=>x.id===id);if(!im)return;
-  openImageEditModal(im.data,(edited)=>saveEditedImage(id,edited),`Edit ${selectedSpecies()?.common||'image'}`)
-}
-function openPendingSpeciesImageEditor(index){const x=state.pendingSpeciesImages[index];if(!x)return;openImageEditModal(x.editedDataUrl||x.dataUrl,(edited)=>{x.editedDataUrl=edited;renderAddSpecies($('app'))},'Edit new species image')}
-function openImageEditModal(src,onSave,title='Edit image'){
-  closeImageEditor();
-  const modal=document.createElement('div');modal.id='imageEditorModal';modal.className='image-editor-backdrop';
-  modal.innerHTML=`<div class="image-editor-panel"><div class="image-editor-head"><div><h2>${esc(title)}</h2><p>Edit a copy of the image. The original is preserved.</p></div><button type="button" onclick="closeImageEditor()">✕</button></div><div class="image-editor-stage" id="imageEditStage"><div id="imageCanvasWrap" class="image-canvas-wrap"><canvas id="imageEditCanvas"></canvas><div id="imageCropBox" class="image-crop-box"><span>DRAG TO CROP</span><i class="image-crop-resize"></i></div></div></div><div class="image-editor-toolbar"><div class="image-editor-group"><b>Crop</b><button type="button" id="cropFull">Full image</button><button type="button" id="cropSquare">Square</button></div><div class="image-editor-group"><b>Rotate</b><button type="button" id="rotLeft">↶ 90°</button><button type="button" id="rotRight">↷ 90°</button></div><div class="image-editor-group"><b>Flip</b><button type="button" id="flipX">↔ Horizontal</button><button type="button" id="flipY">↕ Vertical</button></div></div><div class="image-editor-controls"><label>Brightness <input id="editBrightness" type="range" min="40" max="160" value="100"><output>100%</output></label><label>Contrast <input id="editContrast" type="range" min="40" max="160" value="100"><output>100%</output></label><label>Saturation <input id="editSaturation" type="range" min="0" max="180" value="100"><output>100%</output></label></div><div class="image-editor-size"><b>Output size</b><label>Width <input id="editWidth" type="number" min="20" max="8000"></label><label>Height <input id="editHeight" type="number" min="20" max="8000"></label><label><input id="editLock" type="checkbox" checked> Lock aspect ratio</label></div><div class="button-row"><button type="button" id="resetImageEditControls">Reset edits</button><button type="button" onclick="closeImageEditor()">Cancel</button><button class="primary" type="button" id="saveImageEdit">Save edited image</button></div></div>`;
-  document.body.appendChild(modal);
-  const canvas=modal.querySelector('#imageEditCanvas'),ctx=canvas.getContext('2d'),stage=modal.querySelector('#imageEditStage'),wrap=modal.querySelector('#imageCanvasWrap'),box=modal.querySelector('#imageCropBox'),img=new Image();
-  const st=imageEditorDefault();let baseW=0,baseH=0,renderedW=0,renderedH=0;
-  const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
-  function draw(){
-    if(!img.naturalWidth)return;
-    const rot=((st.rotation%360)+360)%360,swap=rot===90||rot===270;renderedW=swap?img.naturalHeight:img.naturalWidth;renderedH=swap?img.naturalWidth:img.naturalHeight;
-    canvas.width=renderedW;canvas.height=renderedH;ctx.save();ctx.filter=`brightness(${st.brightness}%) contrast(${st.contrast}%) saturate(${st.saturation}%)`;ctx.translate(renderedW/2,renderedH/2);ctx.rotate(rot*Math.PI/180);ctx.scale(st.flipX?-1:1,st.flipY?-1:1);ctx.drawImage(img,-img.naturalWidth/2,-img.naturalHeight/2);ctx.restore();
-    const maxW=Math.max(280,Math.min(stage.clientWidth-20,900)),maxH=Math.max(220,Math.min(window.innerHeight*0.55,650));const scale=Math.min(maxW/renderedW,maxH/renderedH,1);const displayW=Math.round(renderedW*scale),displayH=Math.round(renderedH*scale);canvas.style.width=displayW+'px';canvas.style.height=displayH+'px';wrap.style.width=displayW+'px';wrap.style.height=displayH+'px';
-    box.style.left=st.crop.x+'%';box.style.top=st.crop.y+'%';box.style.width=st.crop.w+'%';box.style.height=st.crop.h+'%';
-    modal.querySelector('#editWidth').value=Math.round(renderedW*st.crop.w/100);modal.querySelector('#editHeight').value=Math.round(renderedH*st.crop.h/100);
-  }
-  function setCrop(x,y,w,h){st.crop={x:clamp(x,0,100),y:clamp(y,0,100),w:clamp(w,5,100),h:clamp(h,5,100)};st.crop.w=Math.min(st.crop.w,100-st.crop.x);st.crop.h=Math.min(st.crop.h,100-st.crop.y);draw()}
-  function updateFilter(id,key){const input=modal.querySelector('#'+id),out=input.nextElementSibling;st[key]=Number(input.value);out.value=input.value+'%';draw()}
-  ['editBrightness','editContrast','editSaturation'].forEach((id)=>modal.querySelector('#'+id).addEventListener('input',()=>updateFilter(id,id.replace('edit','').toLowerCase())));
-  modal.querySelector('#rotLeft').onclick=()=>{st.rotation=(st.rotation+270)%360;draw()};modal.querySelector('#rotRight').onclick=()=>{st.rotation=(st.rotation+90)%360;draw()};modal.querySelector('#flipX').onclick=()=>{st.flipX=!st.flipX;draw()};modal.querySelector('#flipY').onclick=()=>{st.flipY=!st.flipY;draw()};
-  modal.querySelector('#cropFull').onclick=()=>setCrop(0,0,100,100);
-  modal.querySelector('#cropSquare').onclick=()=>{const side=Math.min(100,renderedW/renderedH*100);const h=side*renderedH/renderedW;const w=Math.min(100,h*renderedH/renderedW);const pct=Math.min(100,100*renderedH/renderedW);const cw=Math.min(100,100*renderedH/renderedW);const ch=Math.min(100,100*renderedW/renderedH);setCrop((100-cw)/2,(100-ch)/2,cw,ch)};
-  let dragging=false,resizing=false,sx=0,sy=0,start={};
-  box.addEventListener('pointerdown',e=>{resizing=e.target.classList.contains('image-crop-resize');dragging=!resizing;sx=e.clientX;sy=e.clientY;start={...st.crop};box.setPointerCapture(e.pointerId);e.preventDefault()});
-  box.addEventListener('pointermove',e=>{if(!dragging&&!resizing)return;const r=wrap.getBoundingClientRect(),dx=(e.clientX-sx)/r.width*100,dy=(e.clientY-sy)/r.height*100;if(dragging)setCrop(start.x+dx,start.y+dy,start.w,start.h);else setCrop(start.x,start.y,start.w+dx,start.h+dy)});box.addEventListener('pointerup',()=>{dragging=false;resizing=false});
-  const wInput=modal.querySelector('#editWidth'),hInput=modal.querySelector('#editHeight'),lock=modal.querySelector('#editLock');wInput.oninput=()=>{const w=clamp(Number(wInput.value)||20,20,8000);wInput.value=Math.round(w);if(lock.checked){const ratio=(renderedH*st.crop.h)/(renderedW*st.crop.w);hInput.value=Math.round(w*ratio)}};hInput.oninput=()=>{const h=clamp(Number(hInput.value)||20,20,8000);hInput.value=Math.round(h);if(lock.checked){const ratio=(renderedW*st.crop.w)/(renderedH*st.crop.h);wInput.value=Math.round(h*ratio)}};
-  modal.querySelector('#resetImageEditControls').onclick=()=>{Object.assign(st,imageEditorDefault());['editBrightness','editContrast','editSaturation'].forEach((id)=>{modal.querySelector('#'+id).value=100;modal.querySelector('#'+id).nextElementSibling.value='100%'});draw()};
-  modal.querySelector('#saveImageEdit').onclick=()=>{const sx=renderedW*st.crop.x/100,sy=renderedH*st.crop.y/100,sw=renderedW*st.crop.w/100,sh=renderedH*st.crop.h/100;let ow=clamp(Number(wInput.value)||Math.round(sw),20,8000),oh=clamp(Number(hInput.value)||Math.round(sh),20,8000);const temp=document.createElement('canvas');temp.width=Math.max(1,Math.round(sw));temp.height=Math.max(1,Math.round(sh));const tc=temp.getContext('2d');tc.drawImage(canvas,sx,sy,sw,sh,0,0,temp.width,temp.height);const out=document.createElement('canvas');out.width=ow;out.height=oh;out.getContext('2d').drawImage(temp,0,0,ow,oh);onSave(out.toDataURL('image/jpeg',.92));closeImageEditor()};
-  img.onload=()=>{draw()};img.src=src;
-}
-function closeImageEditor(){document.getElementById('imageEditorModal')?.remove()}
-async function saveEditedImage(id,dataUrl){
-  const custom=state.customImages.find(x=>x.id===id);
-  if(custom){custom.editedDataUrl=dataUrl;await dbPut(IMG_STORE,custom)}else{state.imageEdits[id]={dataUrl,editedAt:Date.now()};saveImageEdits()}
-  await refreshStudyData();render()
-}
-async function resetImageEdit(id){
-  const custom=state.customImages.find(x=>x.id===id);
-  if(custom){delete custom.editedDataUrl;await dbPut(IMG_STORE,custom)}else{delete state.imageEdits[id];saveImageEdits()}
-  await refreshStudyData();render()
-}
-function defaultQuizMask(){return {x:0,y:76,w:100,h:24,blur:14,mode:'blur'}}
-function openMaskEditor(src,initial,onSave,title='Set quiz text area'){
-  closeImageMaskEditor();
-  const m=initial?{...initial}:defaultQuizMask();
-  const modal=document.createElement('div');modal.id='imageMaskEditor';modal.className='mask-editor-backdrop';
-  modal.innerHTML=`<div class="mask-editor-panel"><div class="mask-editor-head"><div><h2>${esc(title)}</h2><p>Drag the box over the text printed on this image. Use the corner handle to resize it.</p></div><button onclick="closeImageMaskEditor()">✕</button></div><div class="mask-editor-stage" id="maskStage"><img id="maskEditorImage" src="${esc(src)}"><div id="maskBox" class="mask-box"><span>QUIZ HIDDEN AREA</span><i class="mask-resize"></i></div></div><div class="mask-editor-controls"><label>Blur strength <input id="maskBlur" type="range" min="4" max="30" value="${Number(m.blur||14)}"><output>${Number(m.blur||14)}px</output></label><label>Mode <select id="maskMode"><option value="blur" ${m.mode!=='hide'?'selected':''}>Blur</option><option value="hide" ${m.mode==='hide'?'selected':''}>Cover</option></select></label></div><div class="button-row"><button class="primary" id="saveMaskBtn">Save text area</button><button onclick="closeImageMaskEditor()">Cancel</button></div></div>`;
-  document.body.appendChild(modal);
-  const stage=modal.querySelector('#maskStage'),box=modal.querySelector('#maskBox'),img=modal.querySelector('#maskEditorImage');
-  let dragging=false,resizing=false,sx=0,sy=0,start={...m};
-  function renderBox(){box.style.left=m.x+'%';box.style.top=m.y+'%';box.style.width=m.w+'%';box.style.height=m.h+'%'}
-  img.onload=renderBox;renderBox();
-  box.addEventListener('pointerdown',e=>{if(e.target.classList.contains('mask-resize'))resizing=true;else dragging=true;sx=e.clientX;sy=e.clientY;start={...m};box.setPointerCapture(e.pointerId);e.preventDefault()});
-  box.addEventListener('pointermove',e=>{if(!dragging&&!resizing)return;const r=stage.getBoundingClientRect(),dx=(e.clientX-sx)/r.width*100,dy=(e.clientY-sy)/r.height*100;if(dragging){m.x=Math.max(0,Math.min(100-m.w,start.x+dx));m.y=Math.max(0,Math.min(100-m.h,start.y+dy))}else{m.w=Math.max(5,Math.min(100-start.x,start.w+dx));m.h=Math.max(5,Math.min(100-start.y,start.h+dy))}renderBox()});
-  box.addEventListener('pointerup',()=>{dragging=false;resizing=false});
-  const blur=modal.querySelector('#maskBlur'),out=blur.nextElementSibling;blur.oninput=()=>out.value=blur.value+'px';
-  modal.querySelector('#saveMaskBtn').onclick=()=>{onSave({...m,blur:Number(blur.value),mode:modal.querySelector('#maskMode').value});closeImageMaskEditor()};
-}
-function closeImageMaskEditor(){document.getElementById('imageMaskEditor')?.remove()}
-function openPendingSpeciesMaskEditor(index){const x=state.pendingSpeciesImages[index];if(!x)return;openMaskEditor(x.dataUrl,x.quizMask,(mask)=>{x.quizMask=mask;renderAddSpecies($('app'))},'Set quiz text area for this new image')}
-async function openImageMaskEditor(id){const im=state.customImages.find(x=>x.id===id);const course=imgsForSelectedSpecies().find(x=>x.id===id);const target=im||course;if(!target)return;openMaskEditor(target.dataUrl||target.data,target.quizMask,(mask)=>{if(target.custom){target.quizMask=mask;dbPut(IMG_STORE,target).then(refreshStudyData).then(render)}else{state.maskOverrides[id]=mask;saveMasks();render()}},'Set quiz text area for this image')}
-function imgsForSelectedSpecies(){const s=selectedSpecies();return s?allImages(s):[]}
-async function clearImageMask(id){const im=state.customImages.find(x=>x.id===id);if(im){im.quizMask=null;await dbPut(IMG_STORE,im)}else{delete state.maskOverrides[id];saveMasks()}await refreshStudyData();render()}
-async function saveImageFile(file,viewType){
-  if(!file.type.startsWith('image/'))return;
-  const dataUrl=await new Promise((res,rej)=>{const r=new FileReader();r.onload=()=>res(r.result);r.onerror=rej;r.readAsDataURL(file)});
-  await putCustomImage({id:'custom-'+Date.now()+'-'+Math.random().toString(36).slice(2),speciesId:selectedSpecies().id,name:file.name||'Pasted image',dataUrl,viewTypes:[viewType,'mixed'].filter((x,i,a)=>a.indexOf(x)===i),quizMask:null,createdAt:Date.now()});
-  await refreshStudyData();render();
-}
-async function removeCustomImage(id){if(!confirm('Delete this image from your trainer?'))return;await deleteCustomImage(id);await refreshStudyData();render()}
-async function setImageTag(id,type){
-  if(id.startsWith('custom:'))return;
-  state.tagOverrides[id]=[type,'mixed'].filter((x,i,a)=>a.indexOf(x)===i);saveTags();render()
-}
-
-
-function startDailyChallenge(){state.sessionPlan=null;state.keepPlan=true;state.length=5;state.focusMissed=true;startQuiz('full')}
-function startSurprise(){state.sessionPlan=null;state.keepPlan=true;state.length=1;state.focusMissed=false;startQuiz('full')}
-function startMystery(){state.sessionPlan=null;state.length=1;state.focusMissed=false;state.mystery=true;state.mode='full';state.answered=false;state.session={q:0,correct:0,points:0,totalPoints:0};state.lastSpecies=null;state.screen='quiz';nextQuestion()}
-function startSmartReview(){const p=loadProgress(),ids=speciesList().filter(s=>(p[s.id]?.wrong||0)>0||!(p[s.id]?.seen)).sort((a,b)=>(p[b.id]?.wrong||0)-(p[a.id]?.wrong||0)).map(s=>s.id);state.sessionPlan=ids.length?ids:null;state.keepPlan=true;state.length=Math.min(10,Math.max(5,ids.length||5));state.focusMissed=false;startQuiz('full')}
-function startFavorites(){const ids=state.favorites.filter(id=>speciesById(id));if(!ids.length){alert(`Star species in ${subjectTitle()} first.`);return}state.sessionPlan=ids;state.keepPlan=true;state.length=Math.min(10,ids.length);state.focusMissed=false;startQuiz('full')}
-function openStudySpecies(id){setStudySpecies(id);setScreen('study')}
-function renderStudyBuilder(app){const options=speciesList().map(s=>`<option value="${s.id}">${esc(s.common)} — ${esc(s.scientific)}</option>`).join('');app.innerHTML=shell('Build My Study Session',`<div class="panel session-builder"><h2>Build a study session around what you need most.</h2><div class="form-grid"><label>Session length<select id="builderLength"><option value="5">5 questions</option><option value="10" selected>10 questions</option><option value="15">15 questions</option><option value="20">20 questions</option></select></label><label>Practice mode<select id="builderMode"><option value="full">Full Practical</option><option value="skull">Skull / Teeth</option><option value="skin">Skin / Whole</option><option value="scientific">Scientific Name</option><option value="family">Family</option></select></label></div><h3>Focus</h3><div class="check-grid"><label><input type="checkbox" id="bTrouble" checked> Trouble species</label><label><input type="checkbox" id="bUnmastered" checked> Unmastered species</label><label><input type="checkbox" id="bNew"> New / unseen species</label><label><input type="checkbox" id="bFavorites"> Favorites</label></div><h3>Exact species (optional)</h3><select id="builderSpecies" multiple size="8">${options}</select><p class="muted">Leave exact species empty to let the Vault build the session automatically.</p><div class="button-row"><button class="primary" onclick="buildStudySession()">Build Session</button><button onclick="setScreen('home')">Cancel</button></div></div>`)}
-function buildStudySession(){const len=Number($('builderLength').value||10),mode=$('builderMode').value,p=loadProgress();let pool=[];const add=a=>a.forEach(x=>{if(x&&!pool.includes(x.id))pool.push(x.id)});add([...$('builderSpecies').selectedOptions].map(o=>speciesById(o.value)));if($('bTrouble').checked)add(speciesList().filter(s=>(p[s.id]?.wrong||0)>0));if($('bUnmastered').checked)add(speciesList().filter(s=>masteryPercent(s.id)<80));if($('bNew').checked)add(speciesList().filter(s=>!(p[s.id]?.seen)));if($('bFavorites').checked)add(state.favorites.map(speciesById));if(!pool.length)pool=speciesList().map(s=>s.id);pool.sort(()=>Math.random()-.5);state.sessionPlan=pool;state.keepPlan=true;state.length=len;state.focusMissed=false;startQuiz(mode)}
-function featureDescription(k){return ({collection:'Your species collection.',badges:'Earn study achievements.',streak:'Track consecutive study days.',daily:'Five-question daily challenge.',surprise:'One random specimen.',galleries:'Use specimen image galleries.',mystery:'Mystery specimen challenge.',trouble:'Surface species you miss.',smartReview:'Automatically review weak areas.',sessionResults:'Show end-of-session results.',xp:'Earn XP for study activity.',themes:'Use custom appearance tools.',journal:'Personal notes for each species.',studyThis:'Quick study access for each species.',mastery:'Show mastery for each species.',recent:'Show recently added species.',favorites:'Star species for quick access.',stats:'Show study statistics.',history:'Show your study history.',clues:'Personal identification clues.',studyBuilder:'Build custom study sessions.'}[k]||'Optional study feature.')}
-function renderSettings(app){const f=state.features||loadFeatures(),labels={collection:`${currentSubject().name} Vault / Collection`,badges:'Mastery Badges',streak:'Study Streak',daily:'Daily Challenge',surprise:'Surprise Me',galleries:'Specimen Galleries',mystery:'Mystery Specimen',trouble:'Trouble Species',smartReview:'Smart Review',sessionResults:'Session Results',xp:'XP & Levels',themes:'Custom Themes',journal:'Personal Field Journal',studyThis:'Study This Species',mastery:'Species Mastery',recent:'Recently Added',favorites:'Favorites',stats:'Detailed Statistics',history:'Study History',clues:'Identification Clues',studyBuilder:'Build My Study Session'};const rows=Object.entries(labels).map(([k,l])=>`<label class="toggle-row"><span><b>${esc(l)}</b><small>${featureDescription(k)}</small></span><input type="checkbox" ${f[k]!==false?'checked':''} onchange="setFeature('${k}',this.checked)"><i class="toggle-ui"></i></label>`).join('');const set=loadSettings();app.innerHTML=shell('Settings',`<div class="settings-layout"><section class="panel"><h2>Feature Access</h2><p class="muted">Turn individual features on/off. Disabled features are removed from the homepage access bar and dashboard.</p><div class="toggle-list">${rows}</div><div class="button-row"><button onclick="enableAllFeatures()">Enable All</button><button onclick="disableOptionalFeatures()">Hide Optional Features</button></div></section><section class="panel"><h2>Practical Settings</h2><label>Default practical length<input id="quizLength" type="number" min="1" max="100" value="${Number(set.length||20)}" onchange="saveQuizSetting()"></label><label class="toggle-row"><span><b>Focus missed species by default</b><small>Weight species you've missed more heavily.</small></span><input id="focusMissed" type="checkbox" ${set.focusMissed?'checked':''} onchange="saveQuizSetting()"><i class="toggle-ui"></i></label><h3>Quiz Image Labels</h3><label>What should happen to text/labels printed on specimen images<select id="quizImageLabels" onchange="saveQuizSetting()"><option value="blur" ${set.quizImageLabels==='hide'?'':'selected'}>Blur likely labels</option><option value="hide" ${set.quizImageLabels==='hide'?'selected':''}>Cover likely labels</option><option value="show" ${set.quizImageLabels==='show'?'selected':''}>Show image unchanged</option></select></label><label>Label mask height (%)<input id="quizLabelMaskHeight" type="number" min="10" max="40" value="${Number(set.quizLabelMaskHeight||24)}" onchange="saveQuizSetting()"><small class="muted">Adjust this if your course images place labels along a larger or smaller bottom strip.</small></label><h2>Cloud Images</h2><p class="muted">Import only the photos you select from Google Photos into this Vault. For privacy, search for the animal/species you want and select 1–2 images. The imported copies are stored in this browser; this is an import rather than automatic two-way sync.</p><label>Google OAuth Client ID<input id="googlePhotosClientId" value="${esc(set.googlePhotosClientId||DEFAULT_GOOGLE_PHOTOS_CLIENT_ID)}" placeholder="1234567890-....apps.googleusercontent.com" onchange="saveGooglePhotosSettings()"></label><div class="button-row"><button onclick="saveGooglePhotosSettings()">Save Google Photos ID</button></div><p class="muted"><small>Google Photos Picker is configured for this Mammal Vault. Your full Google Photos library is not imported. Only photos you explicitly select in the Google Photos Picker are copied into this browser.</small></p><h2>Manage</h2><div class="button-row"><button onclick="setScreen('addSpecies')">+ Add Species</button><button onclick="setScreen('customize')">🎨 Customize Home</button><button onclick="exportBackup()">Export Backup</button><button onclick="triggerImportBackup()">Import Backup</button></div><input id="backupFile" type="file" accept=".json" hidden onchange="importBackup(this.files[0])"></section></div>`)}
-function setFeature(k,v){state.features=state.features||loadFeatures();state.features[k]=!!v;saveFeatures(state.features);render()}
-function enableAllFeatures(){saveFeatures(featureDefaults());render()}
-function disableOptionalFeatures(){const f=featureDefaults();['badges','streak','daily','surprise','galleries','mystery','trouble','smartReview','xp','themes','journal','recent','favorites','stats','history','clues'].forEach(k=>f[k]=false);saveFeatures(f);render()}
-async function handleNewSpeciesFiles(files){for(const file of [...(files||[])]){if(!file.type.startsWith('image/'))continue;const dataUrl=await new Promise((res,rej)=>{const r=new FileReader();r.onload=()=>res(r.result);r.onerror=rej;r.readAsDataURL(file)});state.pendingSpeciesImages.push({name:file.name||'Species image',dataUrl,editedDataUrl:'',viewTypes:['mixed'],quizMask:null,createdAt:Date.now()})}renderAddSpecies($('app'))}
-function removePendingSpeciesImage(index){state.pendingSpeciesImages.splice(index,1);renderAddSpecies($('app'))}
-async function addSpeciesFromForm(){const common=$('newCommon').value.trim(),scientific=$('newScientific').value.trim(),family=$('newFamily').value.trim();if(!common||!scientific){$('speciesError').textContent='Common name and scientific name are required.';return}const id='custom-species-'+Date.now()+'-'+Math.random().toString(36).slice(2);const sp={id,common,scientific,family,images:[],custom:true,subject:state.subject,createdAt:Date.now()};await dbPut(SPECIES_STORE,sp);await dbPut(INFO_STORE,{speciesId:id,notes:$('newNotes').value||'',clues:$('newClues').value||''});for(const image of state.pendingSpeciesImages)await putCustomImage({id:'custom-'+Date.now()+'-'+Math.random().toString(36).slice(2),speciesId:id,name:image.name,dataUrl:image.dataUrl,editedDataUrl:image.editedDataUrl||'',viewTypes:image.viewTypes||['mixed'],quizMask:image.quizMask||null,createdAt:image.createdAt||Date.now()});state.pendingSpeciesImages=[];state.pendingSpeciesForm={common:'',scientific:'',family:'',notes:'',clues:''};await refreshStudyData();state.selectedSpeciesId=id;setScreen('manage')}
-function captureAddSpeciesForm(){if(!$('newCommon'))return;state.pendingSpeciesForm={common:$('newCommon').value||'',scientific:$('newScientific').value||'',family:$('newFamily').value||'',notes:$('newNotes').value||'',clues:$('newClues').value||''}}
-function renderAddSpecies(app){captureAddSpeciesForm();const f=state.pendingSpeciesForm||{};const previews=state.pendingSpeciesImages.map((x,i)=>`<div class="pending-image"><img src="${esc(x.editedDataUrl||x.dataUrl)}"><span class="pending-image-status">${x.editedDataUrl?'Edited copy':'Original'}</span><button type="button" onclick="openPendingSpeciesImageEditor(${i})">✏️ Edit image</button><button type="button" onclick="openPendingSpeciesMaskEditor(${i})">${x.quizMask?'Edit quiz text area':'Set quiz text area'}</button><button type="button" class="danger" onclick="removePendingSpeciesImage(${i})">Remove</button></div>`).join('');app.innerHTML=shell('Add Species',`<div class="panel add-species-form"><h2>Add a new ${currentSubject().name.toLowerCase()} species to ${subjectTitle()}</h2><p class="muted">Add the species information and its images together. You can edit or mask every image before saving the species.</p><div class="form-grid"><label>Common name<input id="newCommon" value="${esc(f.common)}" placeholder="Common name"></label><label>Scientific name<input id="newScientific" value="${esc(f.scientific)}" placeholder="Genus species"></label><label>Family <span class="muted">(optional)</span><input id="newFamily" value="${esc(f.family)}" placeholder="e.g., Felidae"></label></div><label>My species notes<textarea id="newNotes" rows="5" placeholder="Anything you want to remember...">${esc(f.notes)}</textarea></label><label>My identification clues<textarea id="newClues" rows="5" placeholder="Diagnostic features you want to remember...">${esc(f.clues)}</textarea></label><div class="upload-row"><label class="file-button">Add species images<input type="file" accept="image/*" multiple onchange="handleNewSpeciesFiles(this.files)"></label><span class="muted">Select several images at once.</span></div><div class="pending-images">${previews}</div><div class="cloud-import-note"><b>Google Photos:</b> After adding the species, use <b>Import from Google Photos</b> on its Images page.</div><div id="speciesError" class="editor-error"></div><div class="button-row"><button class="primary" onclick="addSpeciesFromForm()">Add to ${subjectTitle()}</button><button onclick="state.pendingSpeciesImages=[];state.pendingSpeciesForm={common:'',scientific:'',family:'',notes:'',clues:''};setScreen('study')">Cancel</button></div></div>`)}
-function renderProgress(app){
-  const p=loadProgress();
-  const rows=speciesList().map(s=>{const r=p[s.id]||{seen:0,correct:0,wrong:0};const pct=r.seen?Math.round(r.correct/r.seen*100):0;return `<tr><td>${esc(s.common)}</td><td>${sciHtml(s.scientific)}</td><td>${r.seen}</td><td>${r.correct}</td><td>${r.wrong}</td><td>${pct}%</td></tr>`}).join('');
-  app.innerHTML=shell('Progress',`<div class="panel"><div class="table-wrap"><table><thead><tr><th>Species</th><th>Scientific name</th><th>Seen</th><th>Correct</th><th>Missed</th><th>Accuracy</th></tr></thead><tbody>${rows}</tbody></table></div><div class="button-row"><button onclick="resetProgress()">Reset Practical Progress</button><button onclick="exportBackup()">Export Full Backup</button></div></div>`)
-}
-function resetProgress(){if(confirm('Reset practical quiz progress?')){localStorage.removeItem(subjectKey(PROGRESS_KEY));render()}}
 
 function openLightbox(src){$('lightboxImg').src=src;$('lightbox').classList.add('open')}
 function closeLightbox(){ $('lightbox').classList.remove('open') }

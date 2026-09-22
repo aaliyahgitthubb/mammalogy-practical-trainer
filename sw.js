@@ -1,5 +1,5 @@
-const CACHE='mammal-vault-2026.09.22.8';
-const CORE=['./','./index.html','./styles.css','./app.js?v=1.9.3','./data.js','./embedded_images.js','./manifest.webmanifest','./version.json'];
+const CACHE='mammal-vault-2026.09.22.9';
+const CORE=['./','./index.html','./styles.css','./app.js?v=1.9.4','./data.js','./embedded_images.js','./manifest.webmanifest','./version.json'];
 self.addEventListener('install',e=>e.waitUntil(caches.open(CACHE).then(c=>c.addAll(CORE)).then(()=>self.skipWaiting())));
 self.addEventListener('activate',e=>e.waitUntil(caches.keys().then(keys=>Promise.all(keys.filter(k=>k!==CACHE).map(k=>caches.delete(k)))).then(()=>self.clients.claim())));
 self.addEventListener('fetch',e=>{

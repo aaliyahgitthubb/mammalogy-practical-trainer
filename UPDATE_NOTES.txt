@@ -1,7 +1,12 @@
-Mammalogy Practical Companion — v1.9.3
+v1.9.4 - Flashcard image attachments
 
-- Added the Flashcard Question Bank directly to the Create/Edit Study Card page.
-- Shows all existing flashcards below the creation form.
-- Added search and species filtering to the question bank.
-- Existing cards can be edited or deleted directly from the question bank.
-- No existing species, images, or flashcards are removed.
+Adds the agreed image feature to flashcard creation/editing:
+- Include an image from the selected species library.
+- Choose a specific species image by thumbnail.
+- Image placement defaults to No image.
+- Placement options: No image, Separate image card, Front of card, Back of card.
+- Separate image cards appear as their own study step in Flashcard Mode.
+- Existing cards remain text-only unless edited.
+- Flashcard question bank remains on the creation/edit page.
+
+Preserve data.js, embedded_images.js, and images/ when applying this update.
