@@ -1,1 +1,5 @@
-{"version":"1.7.1","released":"2026-09-21","notes":"Navigation/button reliability fix: explicitly loads embedded_images.js, safely falls back to image paths, exposes app controls globally for inline handlers, and fixes Smart Review/Favorites species targeting."}
+{
+  "version": "1.8.1",
+  "name": "The Mammal Vault / Class Trainer Hub",
+  "date": "2026-09-21"
+}

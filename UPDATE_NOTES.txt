@@ -37,3 +37,14 @@ Important: the new Add Species feature creates custom species without altering t
 - Navigation/feature functions are explicitly exposed on window for reliable button clicks on GitHub Pages.
 - Smart Review and Favorites now correctly constrain their quiz species pools.
 - Service-worker cache version bumped to force the corrected JavaScript to update.
+
+
+VERSION 1.8.0
+- Scientific names are automatically rendered in italics throughout the trainer where displayed.
+- Quiz images can now blur likely bottom text/labels, cover them, or show images unchanged.
+- Quiz label-mask height is adjustable in Settings.
+- Added a Class Trainer Hub with separate Mammalogy, Ornithology, and Herpetology workspaces.
+- Ornithology and Herpetology start empty and can be populated with custom species, images, and study cards without mixing data into the Mammal Vault.
+- Existing Mammalogy IndexedDB and localStorage data are preserved.
+
+1.8.1 - Added first-time species image uploads and Google Photos Picker import. Google Photos import requires a Google Cloud OAuth web client ID and Photos Picker API enabled. Imported photos are copied into the browser-local Vault; there is no automatic two-way sync.
