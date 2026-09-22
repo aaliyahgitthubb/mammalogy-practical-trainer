@@ -48,3 +48,10 @@ VERSION 1.8.0
 - Existing Mammalogy IndexedDB and localStorage data are preserved.
 
 1.8.1 - Added first-time species image uploads and Google Photos Picker import. Google Photos import requires a Google Cloud OAuth web client ID and Photos Picker API enabled. Imported photos are copied into the browser-local Vault; there is no automatic two-way sync.
+
+
+VERSION 1.8.2
+- Added per-image quiz text/label masking.
+- When adding a new species, each selected image can be configured individually by dragging and resizing a mask over the printed label before saving the species.
+- Existing custom images have Set/Edit quiz text area controls in Manage Images.
+- Each mask is stored with the image and used only during quizzes; the original image remains unchanged.
