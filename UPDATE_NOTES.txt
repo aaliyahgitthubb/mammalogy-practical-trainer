@@ -1,15 +1,14 @@
-The Mammal Vault v2.0.7 — Multi-Box Image Masking Coordinate Fix
+The Mammal Vault — Update 2.0.9
 
-Replace the update files in the existing GitHub Pages repository.
-KEEP data.js and embedded_images.js unchanged.
+FIX: Rebuilt quiz-mask dragging using direct mouse events plus touch events. Blur and Cover boxes now use the same drag controller and no longer depend on pointer capture/bubbling behavior.
 
-This update fixes the multi-box quiz-mask editor so mask coordinates are tied to the actual displayed image rather than the surrounding editor/quiz panel.
+Included:
+- index.html
+- manifest.webmanifest
+- styles.css
+- app.js
+- sw.js
+- version.json
+- UPDATE_NOTES.txt
 
-Features:
-- Add multiple independent Blur or Cover boxes to each image.
-- Drag boxes to move them.
-- Drag the lower-right handle to resize them.
-- Select a box and change its mode or blur strength.
-- Remove one box or clear all boxes.
-- Saved masks are applied to that exact image during quizzes.
-- Existing single-mask data remains compatible.
+Keep your existing data.js and embedded_images.js in the GitHub repository. Replace the seven files above.

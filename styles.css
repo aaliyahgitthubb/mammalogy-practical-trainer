@@ -130,8 +130,8 @@ body.home-dark{background:#15191d;color:#edf2f5}
 .clue-content{margin-top:10px}
 .batch-upload-help{margin-top:-7px;margin-bottom:10px}.batch-upload-status{min-height:20px;margin:-4px 0 12px;font-size:.92rem;color:var(--text-muted,#66717c)}
 /* v2.0.6: mask coordinates are relative to the actual displayed image, not the surrounding panel. */
-.mask-image-layer{position:relative;display:inline-block;line-height:0;max-width:100%;max-height:65vh}
-.mask-image-layer img{display:block;max-width:100%;max-height:65vh;width:auto;height:auto;user-select:none}
+.mask-image-layer{position:relative;display:inline-block;line-height:0;max-width:100%;max-height:65vh;touch-action:none}
+.mask-image-layer img{display:block;max-width:100%;max-height:65vh;width:auto;height:auto;user-select:none;-webkit-user-drag:none;pointer-events:none}
 .mask-image-layer #maskBoxes{position:absolute;inset:0;pointer-events:auto}
 .mask-editor-stage{display:flex;align-items:center;justify-content:center}
 .quiz-image-canvas{position:relative;display:inline-block;line-height:0;max-width:100%;max-height:620px}

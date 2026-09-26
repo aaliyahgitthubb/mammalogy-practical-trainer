@@ -761,34 +761,54 @@ function openMaskEditor(src,initial,onSave,title='Set quiz text areas'){
     count.textContent=boxes.length?`${boxes.length} box${boxes.length===1?'':'es'} saved for this image.`:'No boxes yet — add one to hide image text.';
     modal.querySelector('#removeMaskBox').disabled=!b;
   }
+  let activeDrag=null;
   function renderBoxes(){
     boxLayer.innerHTML='';
     boxes.forEach((b,i)=>{
-      const el=document.createElement('div');el.className='mask-box'+(b.id===selectedId?' selected':'');el.dataset.id=b.id;el.style.left=b.x+'%';el.style.top=b.y+'%';el.style.width=b.w+'%';el.style.height=b.h+'%';el.innerHTML=`<span>${b.mode==='hide'?'COVER':'BLUR'} ${i+1}</span><i class="mask-resize"></i>`;
-      boxLayer.appendChild(el);
-      let dragging=false,resizing=false,sx=0,sy=0,start={...b};
-      el.addEventListener('pointerdown',e=>{
+      const el=document.createElement('div');
+      el.className='mask-box'+(b.id===selectedId?' selected':'');
+      el.dataset.id=b.id;
+      el.style.left=b.x+'%';el.style.top=b.y+'%';el.style.width=b.w+'%';el.style.height=b.h+'%';
+      el.innerHTML=`<span>${b.mode==='hide'?'COVER':'BLUR'} ${i+1}</span><i class="mask-resize"></i>`;
+      const beginDrag=(clientX,clientY,isResize,e)=>{
         selectedId=b.id;
+        activeDrag={id:b.id,resize:isResize,startX:clientX,startY:clientY,start:{...b}};
         boxLayer.querySelectorAll('.mask-box').forEach(node=>node.classList.toggle('selected',node.dataset.id===selectedId));
         syncControls();
-        dragging=!e.target.classList.contains('mask-resize');resizing=!dragging;
-        sx=e.clientX;sy=e.clientY;start={...b};
-        el.setPointerCapture?.(e.pointerId);e.preventDefault();e.stopPropagation();
-      });
-      el.addEventListener('pointermove',e=>{
-        if(!dragging&&!resizing)return;
-        const r=layer.getBoundingClientRect();
-        if(!r.width||!r.height)return;
-        const dx=(e.clientX-sx)/r.width*100,dy=(e.clientY-sy)/r.height*100;
-        if(dragging){b.x=clamp(start.x+dx,0,100-b.w);b.y=clamp(start.y+dy,0,100-b.h)}
-        else{b.w=clamp(start.w+dx,5,100-start.x);b.h=clamp(start.h+dy,5,100-start.y)}
-        el.style.left=b.x+'%';el.style.top=b.y+'%';el.style.width=b.w+'%';el.style.height=b.h+'%';
-      });
-      el.addEventListener('pointerup',()=>{dragging=false;resizing=false});
-      el.addEventListener('pointercancel',()=>{dragging=false;resizing=false});
+        if(e){e.preventDefault();e.stopPropagation()}
+      };
+      el.addEventListener('mousedown',e=>beginDrag(e.clientX,e.clientY,e.target instanceof Element && e.target.classList.contains('mask-resize'),e));
+      el.addEventListener('touchstart',e=>{
+        const t=e.touches[0];if(!t)return;
+        beginDrag(t.clientX,t.clientY,e.target instanceof Element && e.target.classList.contains('mask-resize'),e);
+      },{passive:false});
+      boxLayer.appendChild(el);
     });
     syncControls();
   }
+  function finishMaskDrag(){activeDrag=null}
+  function moveMaskDrag(clientX,clientY,e){
+    const d=activeDrag;if(!d)return;
+    const b=boxes.find(x=>x.id===d.id);if(!b)return;
+    const r=layer.getBoundingClientRect();
+    if(!r.width||!r.height)return;
+    const dx=(clientX-d.startX)/r.width*100,dy=(clientY-d.startY)/r.height*100;
+    if(d.resize){
+      b.w=clamp(d.start.w+dx,5,100-d.start.x);
+      b.h=clamp(d.start.h+dy,5,100-d.start.y);
+    }else{
+      b.x=clamp(d.start.x+dx,0,100-d.start.w);
+      b.y=clamp(d.start.y+dy,0,100-d.start.h);
+    }
+    const el=boxLayer.querySelector('.mask-box[data-id="'+CSS.escape(b.id)+'"]');
+    if(el){el.style.left=b.x+'%';el.style.top=b.y+'%';el.style.width=b.w+'%';el.style.height=b.h+'%';}
+    if(e)e.preventDefault();
+  }
+  window.addEventListener('mousemove',e=>moveMaskDrag(e.clientX,e.clientY,e),{passive:false});
+  window.addEventListener('mouseup',finishMaskDrag);
+  window.addEventListener('touchmove',e=>{const t=e.touches[0];if(t)moveMaskDrag(t.clientX,t.clientY,e)},{passive:false});
+  window.addEventListener('touchend',finishMaskDrag);
+  window.addEventListener('touchcancel',finishMaskDrag);
   function addBox(boxMode){
     const offset=Math.min(boxes.length*4,25);const b={...defaultQuizMask(),id:'mask-'+Math.random().toString(36).slice(2),x:Math.min(70,10+offset),y:Math.min(70,10+offset),w:30,h:15,mode:boxMode};
     boxes.push(b);selectedId=b.id;renderBoxes();
