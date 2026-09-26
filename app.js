@@ -1,5 +1,5 @@
 
-const DB_VERSION=4;
+const DB_VERSION=5;
 const SUBJECTS={mammalogy:{name:'Mammalogy',vault:'The Mammal Vault',icon:'🦌',description:'Mammal species, specimens, skulls, teeth, and practical identification.'},ornithology:{name:'Ornithology',vault:'The Bird Vault',icon:'🦅',description:'Build the same kind of practical trainer for your future ornithology class.'},herpetology:{name:'Herpetology',vault:'The Herp Vault',icon:'🐍',description:'A separate practical workspace for reptiles and amphibians.'}};
 function currentSubject(){return SUBJECTS[state.subject]||SUBJECTS.mammalogy}
 function dbName(){return state.subject==='mammalogy'?'mammalogy-practical-db':`mammalogy-practical-${state.subject}-db`}
@@ -21,7 +21,7 @@ const state={
   subject:'mammalogy', screen:'home', mode:'full', length:20, current:null, answered:false, editor:null,
   session:{q:0,correct:0,points:0,totalPoints:0}, lastSpecies:null, focusMissed:false,
   customImages:[], customSpecies:[], pendingSpeciesImages:[], tagOverrides:{}, maskOverrides:{}, imageEdits:{}, cards:[], speciesInfo:{}, homeImages:[], homeConfig:null,
-  maskEditor:null, cardBankQuery:'', cardBankSpecies:'', pendingSpeciesForm:{common:'',scientific:'',family:'',notes:'',clues:''}, selectedSpeciesId:null, studyMode:'browse', studyIndex:0, studyFlipped:false, studyTagFilter:'', sessionPlan:null, mystery:false, features:null, favorites:[]
+  maskEditor:null, cardBankQuery:'', cardBankSpecies:'', pendingSpeciesForm:{common:'',scientific:'',family:'',notes:'',clues:''}, selectedSpeciesId:null, studyMode:'browse', studyIndex:0, studyFlipped:false, studyTagFilter:'', noteFlashcardStatus:'', sessionPlan:null, mystery:false, features:null, favorites:[]
 };
 function speciesList(){const source=(state.subject==='mammalogy'&&typeof SOURCE_SPECIES!=='undefined'&&Array.isArray(SOURCE_SPECIES))?SOURCE_SPECIES:[];return [...source,...state.customSpecies]}
 function featureDefaults(){return {collection:true,badges:true,streak:true,daily:true,surprise:true,galleries:true,mystery:true,trouble:true,smartReview:true,sessionResults:true,xp:true,themes:true,journal:true,studyThis:true,mastery:true,recent:true,favorites:true,stats:true,history:true,clues:true,studyBuilder:true}}
@@ -335,6 +335,7 @@ function renderStudy(app){
   const filteredCards=activeTag?allStudyCards.filter(x=>(x.tags||[]).includes(activeTag)):allStudyCards;
   const flashDeck=flashDeckCards(filteredCards);
   const c=flashDeck.length?flashDeck[state.studyIndex%flashDeck.length]:null;
+  const noteBlocks=parseNoteFlashcardBlocks(info.notes||'');
   let cardPanel='';
   if(state.studyMode==='flash'&&c){
     const flipped=state.studyFlipped;
@@ -355,9 +356,20 @@ function renderStudy(app){
     <div class="study-layout">
       <aside class="species-sidebar"><input class="search" id="speciesSearch" placeholder="Search species..." oninput="filterSpeciesList()"><div id="speciesList">${list}</div></aside>
       <section class="study-main">
-        <div class="species-heading"><div><h2>${esc(s.common)} ${state.favorites.includes(s.id)?'⭐':''}</h2><p>${sciHtml(s.scientific)} · ${s.family?esc(s.family):'Family not specified'}</p><div class="mastery-ring" style="--p:${masteryPercent(s.id)}%"><span>${masteryPercent(s.id)}%</span></div></div><div class="button-row"><button onclick="openStudyNewCard()">+ Add Card</button><button onclick="toggleFavorite('${s.id}')">${state.favorites.includes(s.id)?'★ Unfavorite':'☆ Favorite'}</button><button onclick="editSpeciesInfo()">Edit Notes / Clues</button><button onclick="openManageLibrary()">Manage Images</button><button onclick="setScreen('addSpecies')">+ Add Species</button></div></div>
-        ${featureOn('galleries')?`<div class="species-gallery panel"><div class="gallery-head"><h3>🖼️ Specimen Gallery</h3><button onclick="openManageLibrary()">Manage Images</button></div><div class="vault-gallery">${allImages(s).slice(0,6).map(i=>`<img src="${esc(i.data)}" alt="${esc(s.common)}" onclick="openLightbox('${esc(i.data)}')">`).join('')}</div>${allImages(s).length?`<small>${allImages(s).length} image${allImages(s).length===1?'':'s'} in this species collection.</small>`:'<p class="muted">Add specimen images in Images.</p>'}</div>`:''}<div class="study-tabs"><button class="${state.studyMode==='browse'?'active':''}" onclick="state.studyMode='browse';render()">Browse Cards</button><button class="${state.studyMode==='flash'?'active':''}" onclick="state.studyMode='flash';state.studyIndex=0;state.studyFlipped=false;render()">Flashcard Mode</button></div>
-        ${info.notes?`<div class="notes panel"><h3>My Species Notes</h3><div>${esc(info.notes).replace(/\n/g,'<br>')}</div></div>`:''}${info.clues&&featureOn('clues')?`<div class="notes panel clue-panel"><h3>🔎 My Identification Clues</h3><div>${esc(info.clues).replace(/\n/g,'<br>')}</div></div>`:''}
+        <div class="species-heading"><div><h2>${esc(s.common)} ${state.favorites.includes(s.id)?'⭐':''}</h2><p>${sciHtml(s.scientific)} · ${s.family?esc(s.family):'Family not specified'}</p><div class="mastery-ring" style="--p:${masteryPercent(s.id)}%"><span>${masteryPercent(s.id)}%</span></div></div><div class="button-row"><button onclick="openStudyNewCard()">+ Add Card</button><button onclick="toggleFavorite('${s.id}')">${state.favorites.includes(s.id)?'★ Unfavorite':'☆ Favorite'}</button><button onclick="editSpeciesInfo()">Notes / Clues</button><button onclick="openManageLibrary()">Manage Images</button><button onclick="setScreen('addSpecies')">+ Add Species</button></div></div>
+        ${featureOn('galleries')?`<div class="species-gallery panel"><div class="gallery-head"><h3>🖼️ Specimen Gallery</h3><button onclick="openManageLibrary()">Manage Images</button></div><div class="vault-gallery">${allImages(s).slice(0,6).map(i=>`<img src="${esc(i.data)}" alt="${esc(s.common)}" onclick="openLightbox('${esc(i.data)}')">`).join('')}</div>${allImages(s).length?`<small>${allImages(s).length} image${allImages(s).length===1?'':'s'} in this species collection.</small>`:'<p class="muted">Add specimen images in Images.</p>'}</div>`:''}
+        <div class="notes-editor panel">
+          <div class="section-head"><div><h3>📝 My Species Notes</h3><p class="muted">Write normal notes freely. Only blocks inserted with “🃏 Insert Flashcard” will become flashcards.</p></div><span id="notesSaveStatus" class="muted">${esc(state.noteFlashcardStatus||'')}</span></div>
+          <textarea id="speciesNotesEditor" class="species-notes-editor" spellcheck="true" placeholder="Write anything you want to remember about this species...">${esc(info.notes||'')}</textarea>
+          <div class="notes-toolbar">
+            <button type="button" onclick="insertFlashcardTemplate()">🃏 Insert Flashcard</button>
+            <button type="button" class="primary" onclick="createFlashcardsFromNotes()">🃏 Create Flashcards from Notes${noteBlocks.length?` (${noteBlocks.length})`:''}</button>
+            <button type="button" onclick="saveSpeciesNotesFromEditor()">💾 Save Notes</button>
+            <span class="muted">Flashcard blocks found: ${noteBlocks.length}</span>
+          </div>
+          ${info.clues&&featureOn('clues')?`<details class="clue-panel"><summary>🔎 Identification Clues</summary><div class="notes clue-content">${esc(info.clues).replace(/\n/g,'<br>')}</div></details>`:''}
+        </div>
+        <div class="study-tabs"><button class="${state.studyMode==='browse'?'active':''}" onclick="state.studyMode='browse';render()">Browse Cards</button><button class="${state.studyMode==='flash'?'active':''}" onclick="state.studyMode='flash';state.studyIndex=0;state.studyFlipped=false;render()">Flashcard Mode</button></div>
         <div class="cards-header"><h3>${state.studyMode==='flash'?'Flashcards':'Study Cards'} <span>${filteredCards.length}${activeTag?` / ${cards.length}`:''}</span></h3><div class="filter-row"><label>Filter by tag<select id="studyTagFilter" onchange="state.studyTagFilter=this.value;state.studyIndex=0;state.studyFlipped=false;render()"><option value="">All tags</option>${[...new Set(state.cards.flatMap(x=>x.tags||[]))].sort().map(t=>`<option value="${esc(t)}" ${t===activeTag?'selected':''}>${esc(t)}</option>`).join('')}</select></label>${state.studyMode==='flash'&&filteredCards.length?`<button onclick="shuffleStudyCards()">Shuffle</button>`:''}</div></div>
         ${cardPanel}
       </section>
@@ -399,13 +411,78 @@ async function submitCardEditor(){
 }
 function cancelCardEditor(){state.editor=null;state.screen='study';render()}
 async function saveCard(o){
-  const card={id:o.id||('card-'+Date.now()+'-'+Math.random().toString(36).slice(2)),speciesId:o.speciesId,front:o.front,back:o.back,category:o.category||'General',customCategory:o.customCategory||'',tags:Array.isArray(o.tags)?o.tags:parseTags(o.tags),order:o.order??0,imageId:o.imageId||'',imagePlacement:['none','separate','front','back'].includes(o.imagePlacement)?o.imagePlacement:'none'};
+  const card={id:o.id||('card-'+Date.now()+'-'+Math.random().toString(36).slice(2)),speciesId:o.speciesId,front:o.front,back:o.back,category:o.category||'General',customCategory:o.customCategory||'',tags:Array.isArray(o.tags)?o.tags:parseTags(o.tags),order:o.order??0,imageId:o.imageId||'',imagePlacement:['none','separate','front','back'].includes(o.imagePlacement)?o.imagePlacement:'none',noteBlockId:o.noteBlockId||''};
   await dbPut(CARD_STORE,card);await refreshStudyData();
 }
 function editCard(id){openStudyEditCard(id)}
 async function deleteCard(id){if(!confirm('Delete this study card?'))return;await dbDelete(CARD_STORE,id);await refreshStudyData();render()}
 
-async function editSpeciesInfo(){const s=selectedSpecies(),old=state.speciesInfo[s.id]||{};const notes=prompt(`Your notes for ${s.common}:`,old.notes||'');if(notes===null)return;const clues=prompt(`Your identification clues for ${s.common}:`,old.clues||'');if(clues===null)return;await dbPut(INFO_STORE,{speciesId:s.id,notes,clues});await refreshStudyData();render()}
+async function saveSpeciesNotesFromEditor(){
+  const s=selectedSpecies(); if(!s)return;
+  const old=state.speciesInfo[s.id]||{};
+  const notes=$('speciesNotesEditor')?.value??old.notes??'';
+  const clues=old.clues||'';
+  await dbPut(INFO_STORE,{speciesId:s.id,notes,clues});
+  state.speciesInfo[s.id]={...old,speciesId:s.id,notes,clues};
+  state.noteFlashcardStatus='Notes saved.';
+  const status=$('notesSaveStatus'); if(status) status.textContent='Saved';
+}
+function insertFlashcardTemplate(){
+  const ta=$('speciesNotesEditor'); if(!ta)return;
+  const id='note-'+Date.now()+'-'+Math.random().toString(36).slice(2,8);
+  const template=`[[FLASHCARD:${id}]]\nQuestion: \nAnswer: \n[[/FLASHCARD]]`;
+  const start=ta.selectionStart??ta.value.length, end=ta.selectionEnd??start;
+  ta.value=ta.value.slice(0,start)+template+ta.value.slice(end);
+  const answerStart=start+template.indexOf('Question: ')+10;
+  ta.focus();
+  ta.setSelectionRange(answerStart,answerStart);
+  saveSpeciesNotesFromEditor();
+}
+function parseNoteFlashcardBlocks(notes){
+  const blocks=[];
+  const re=/\[\[FLASHCARD:([A-Za-z0-9_-]+)\]\]\s*Question:\s*([\s\S]*?)\s*Answer:\s*([\s\S]*?)\s*\[\[\/FLASHCARD\]\]/g;
+  let m;
+  while((m=re.exec(notes||''))){
+    const front=m[2].trim(),back=m[3].trim();
+    if(front&&back)blocks.push({noteBlockId:m[1],front,back});
+  }
+  return blocks;
+}
+async function createFlashcardsFromNotes(){
+  const s=selectedSpecies(); if(!s)return;
+  const ta=$('speciesNotesEditor'); if(!ta)return;
+  const notes=ta.value||'';
+  await saveSpeciesNotesFromEditor();
+  const blocks=parseNoteFlashcardBlocks(notes);
+  if(!blocks.length){
+    state.noteFlashcardStatus='No completed flashcard blocks found. Use “🃏 Insert Flashcard” first.';
+    render(); return;
+  }
+  const existing=cardsFor(s.id);
+  let created=0,updated=0;
+  for(const b of blocks){
+    const prior=existing.find(c=>c.noteBlockId===b.noteBlockId);
+    const card={
+      ...(prior||{}),
+      id:prior?.id,
+      speciesId:s.id,
+      front:b.front,
+      back:b.back,
+      category:prior?.category||'General',
+      customCategory:prior?.customCategory||'',
+      tags:prior?.tags?.length?prior.tags:['Notes'],
+      imageId:prior?.imageId||'',
+      imagePlacement:prior?.imagePlacement||'none',
+      order:prior?.order??existing.length+created,
+      noteBlockId:b.noteBlockId
+    };
+    await saveCard(card);
+    prior?updated++:created++;
+  }
+  state.noteFlashcardStatus=`${created} new flashcard${created===1?'':'s'} created${updated?` · ${updated} updated`:''}.`;
+  await refreshStudyData(); render();
+}
+function editSpeciesInfo(){render()}
 
 function renderCardEditor(app){
   const e=state.editor||{speciesId:selectedSpecies().id,front:'',back:'',category:'General',customCategory:'',tags:[],imageId:'',imagePlacement:'none'};

@@ -1,1 +1,8 @@
-v1.9.5 — Restored the complete v1.9.3 application and safely integrated flashcard image attachments. Existing flashcards remain text-only by default. New cards can select one image from the selected species library and place it as no image (default), separate image card, front, or back.
+v1.9.6 — Added document-style species Notes with inline flashcard creation.
+- Notes are editable directly on each species study page.
+- “🃏 Insert Flashcard” inserts a marked Question/Answer block at the cursor.
+- Only marked flashcard blocks are converted into study cards.
+- Re-running “Create Flashcards from Notes” updates existing note-linked cards instead of duplicating them.
+- Normal notes remain normal notes.
+- No AI or external API is required.
+- Existing specimen images and flashcard image attachment functionality retained.
