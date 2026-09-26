@@ -1,6 +1,8 @@
 Mammal Vault v2.1.0
-- Added Edit Species for correcting common name, scientific name, family, notes, and clues.
-- Rebuilt Blur/Cover mask dragging using pointer events captured at the document level.
-- Blur and Cover boxes now use the same drag controller; mouse, touch, and pen input are supported.
-- Added pointer-event/user-selection safeguards so the image cannot steal the drag.
+- Added a clearly visible Edit Species button directly on every species in Manage Species & Images.
+- Edit Species can correct common name, scientific name, family, notes, and identification clues.
+- Edit Species functions are exposed correctly to the page buttons.
+- Rebuilt Blur/Cover dragging with a desktop mouse + touch fallback instead of relying on pointer capture.
+- Blur and Cover boxes share the same drag controller and can be moved anywhere within the image.
+- Resizing remains available from the lower-right handle.
 - Existing data.js and embedded_images.js are intentionally not included; keep your existing copies.

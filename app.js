@@ -602,7 +602,7 @@ function renderManage(app){
     const groups={};
     species.slice().sort((a,b)=>(a.family||'Unclassified').localeCompare(b.family||'Unclassified')||a.common.localeCompare(b.common)).forEach(x=>{const family=x.family?.trim()||'Unclassified';(groups[family]??=[]).push(x)});
     const families=Object.keys(groups).sort((a,b)=>a.localeCompare(b));
-    const sections=families.map(f=>`<section class="family-library-section"><div class="family-library-heading"><h3>${esc(f)}</h3><span>${groups[f].length} species</span></div><div class="species-card-grid">${groups[f].map(x=>{const img=allImages(x)[0];return `<button class="species-library-card" onclick="setStudySpecies('${x.id}');render()"><div class="species-library-thumb">${img?`<img src="${esc(img.data)}" alt="">`:'<span>NO IMAGE</span>'}</div><div class="species-library-info"><strong>${esc(x.common)}</strong><em>${sciHtml(x.scientific)}</em></div></button>`}).join('')}</div></section>`).join('');
+    const sections=families.map(f=>`<section class="family-library-section"><div class="family-library-heading"><h3>${esc(f)}</h3><span>${groups[f].length} species</span></div><div class="species-card-grid">${groups[f].map(x=>{const img=allImages(x)[0];return `<div class="species-library-card"><button type="button" class="species-library-card-main" onclick="setStudySpecies('${x.id}');render()"><div class="species-library-thumb">${img?`<img src="${esc(img.data)}" alt="">`:'<span>NO IMAGE</span>'}</div><div class="species-library-info"><strong>${esc(x.common)}</strong><em>${sciHtml(x.scientific)}</em></div></button><button type="button" class="species-library-edit" onclick="state.selectedSpeciesId='${x.id}';openEditSpecies()">✏️ Edit Species</button></div>`}).join('')}</div></section>`).join('');
     app.innerHTML=shell('Manage Species & Images',`<div class="species-library-landing"><div class="library-hero panel"><div><p class="eyebrow">${esc(subjectTitle())}</p><h2>Species Library</h2><p class="muted">Choose a species to view or edit its images and information.</p></div><button class="primary" onclick="setScreen('addSpecies')">+ Add Species</button></div>${imageCategoryManagerHtml()}<div class="library-toolbar"><input class="search" id="speciesLibrarySearch" placeholder="Search common or scientific name..." oninput="filterSpeciesLibrary()"><span class="muted">${species.length} species · ${families.length} families</span></div><div id="speciesLibraryGroups">${sections}</div></div>`);return;
   }
   const s=selectedSpecies(),imgs=allImages(s);
@@ -785,6 +785,21 @@ function openMaskEditor(src,initial,onSave,title='Set quiz text areas'){
     modal.querySelector('#removeMaskBox').disabled=!b;
   }
   let activeDrag=null;
+  function pointFromEvent(e){
+    if(e.touches&&e.touches.length)return {x:e.touches[0].clientX,y:e.touches[0].clientY};
+    return {x:e.clientX,y:e.clientY};
+  }
+  function beginMaskDrag(b,el,e,resize=false){
+    const p=pointFromEvent(e);
+    selectedId=b.id;
+    activeDrag={id:b.id,resize,startX:p.x,startY:p.y,start:{...b}};
+    boxLayer.querySelectorAll('.mask-box').forEach(node=>node.classList.toggle('selected',node.dataset.id===selectedId));
+    syncControls();
+    el.style.cursor=resize?'nwse-resize':'grabbing';
+    document.body.style.userSelect='none';
+    e.preventDefault();
+    e.stopPropagation();
+  }
   function renderBoxes(){
     boxLayer.innerHTML='';
     boxLayer.style.touchAction='none';
@@ -796,36 +811,26 @@ function openMaskEditor(src,initial,onSave,title='Set quiz text areas'){
       el.style.left=b.x+'%';el.style.top=b.y+'%';el.style.width=b.w+'%';el.style.height=b.h+'%';
       el.style.pointerEvents='auto';
       el.innerHTML=`<span>${b.mode==='hide'?'COVER':'BLUR'} ${i+1}</span><i class="mask-resize" aria-label="Resize box"></i>`;
-      el.onpointerdown=e=>{
-        const isResize=e.target instanceof Element && e.target.classList.contains('mask-resize');
-        selectedId=b.id;
-        activeDrag={id:b.id,pointerId:e.pointerId,resize:isResize,startX:e.clientX,startY:e.clientY,start:{...b}};
-        boxLayer.querySelectorAll('.mask-box').forEach(node=>node.classList.toggle('selected',node.dataset.id===selectedId));
-        syncControls();
-        el.style.cursor=isResize?'nwse-resize':'grabbing';
-        document.body.style.userSelect='none';
-        try{el.setPointerCapture(e.pointerId)}catch{}
-        e.preventDefault();
-        e.stopPropagation();
-      };
+      el.addEventListener('mousedown',e=>beginMaskDrag(b,el,e,e.target.closest?.('.mask-resize')));
+      el.addEventListener('touchstart',e=>beginMaskDrag(b,el,e,e.target.closest?.('.mask-resize')),{passive:false});
       boxLayer.appendChild(el);
     });
     syncControls();
   }
-  function finishMaskDrag(e){
+  function finishMaskDrag(){
     if(!activeDrag)return;
-    if(e?.pointerId!=null && activeDrag.pointerId!==e.pointerId)return;
     const el=boxLayer.querySelector('.mask-box[data-id="'+CSS.escape(activeDrag.id)+'"]');
     if(el)el.style.cursor='move';
     activeDrag=null;
     document.body.style.userSelect='';
   }
   function moveMaskDrag(e){
-    const d=activeDrag;if(!d||d.pointerId!==e.pointerId)return;
+    const d=activeDrag;if(!d)return;
+    const p=pointFromEvent(e);
     const b=boxes.find(x=>x.id===d.id);if(!b)return;
     const r=boxLayer.getBoundingClientRect();
     if(!r.width||!r.height)return;
-    const dx=(e.clientX-d.startX)/r.width*100,dy=(e.clientY-d.startY)/r.height*100;
+    const dx=(p.x-d.startX)/r.width*100,dy=(p.y-d.startY)/r.height*100;
     if(d.resize){
       b.w=clamp(d.start.w+dx,5,100-d.start.x);
       b.h=clamp(d.start.h+dy,5,100-d.start.y);
@@ -837,9 +842,11 @@ function openMaskEditor(src,initial,onSave,title='Set quiz text areas'){
     if(el){el.style.left=b.x+'%';el.style.top=b.y+'%';el.style.width=b.w+'%';el.style.height=b.h+'%';}
     e.preventDefault();
   }
-  document.addEventListener('pointermove',moveMaskDrag,{passive:false,capture:true});
-  document.addEventListener('pointerup',finishMaskDrag,{capture:true});
-  document.addEventListener('pointercancel',finishMaskDrag,{capture:true});
+  window.addEventListener('mousemove',moveMaskDrag,{passive:false});
+  window.addEventListener('mouseup',finishMaskDrag);
+  window.addEventListener('touchmove',moveMaskDrag,{passive:false});
+  window.addEventListener('touchend',finishMaskDrag);
+  window.addEventListener('touchcancel',finishMaskDrag);
   function addBox(boxMode){
     const offset=Math.min(boxes.length*4,25);const b={...defaultQuizMask(),id:'mask-'+Math.random().toString(36).slice(2),x:Math.min(70,10+offset),y:Math.min(70,10+offset),w:30,h:15,mode:boxMode};
     boxes.push(b);selectedId=b.id;renderBoxes();
@@ -855,7 +862,7 @@ function openMaskEditor(src,initial,onSave,title='Set quiz text areas'){
   img.onload=()=>{requestAnimationFrame(renderBoxes)};
   const onResize=()=>renderBoxes();
   window.addEventListener('resize',onResize,{passive:true});
-  modal._maskCleanup=()=>window.removeEventListener('resize',onResize);
+  modal._maskCleanup=()=>{window.removeEventListener('resize',onResize);window.removeEventListener('mousemove',moveMaskDrag);window.removeEventListener('mouseup',finishMaskDrag);window.removeEventListener('touchmove',moveMaskDrag);window.removeEventListener('touchend',finishMaskDrag);window.removeEventListener('touchcancel',finishMaskDrag);finishMaskDrag()};
   renderBoxes();
 }
 function closeImageMaskEditor(){const m=document.getElementById('imageMaskEditor');if(m){m._maskCleanup?.();m.remove()}}
@@ -947,7 +954,7 @@ Object.assign(window,{
   startDailyChallenge,startSurprise,startMystery,startSmartReview,startFavorites,
   openStudySpecies,setStudySpecies,studyNext,studyPrev,shuffleStudyCards,
   openStudyNewCard,openStudyEditCard,submitCardEditor,cancelCardEditor,
-  saveCard,editCard,deleteCard,editSpeciesInfo,cardEditorSpeciesChanged,selectEditorImage,setEditorImagePlacement,
+  saveCard,editCard,deleteCard,editSpeciesInfo,openEditSpecies,closeEditSpecies,saveEditedSpecies,cardEditorSpeciesChanged,selectEditorImage,setEditorImagePlacement,
   handlePaste,pasteImageFromClipboard,handleFiles,saveImageFile,removeCustomImage,setImageTag,openPendingSpeciesMaskEditor,openPendingSpeciesImageEditor,openImageMaskEditor,openImageEditor,resetImageEdit,closeImageEditor,clearImageMask,closeImageMaskEditor,handleNewSpeciesFiles,removePendingSpeciesImage,captureAddSpeciesForm,importGooglePhotosToSpecies,saveGooglePhotosSettings,
   toggleFavorite,openLightbox,closeLightbox,
   enableAllFeatures,disableOptionalFeatures,setFeature,
