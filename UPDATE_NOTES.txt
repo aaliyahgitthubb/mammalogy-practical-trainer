@@ -1,7 +1,3 @@
-Mammal Vault v1.9.8
+v1.9.9 — Paste Image / Version Synchronization Fix
 
-Paste Image Fix
-- Added an explicit “Paste from Clipboard” button using the browser Clipboard API.
-- Retained Ctrl+V image paste as a fallback.
-- Paste works from Manage Species & Images for the selected species.
-- No changes to existing image editing, quiz masking, Google Photos, or flashcard features.
+This update synchronizes index.html, app.js, sw.js, and version.json so GitHub Pages loads the same current application code. The image paste tools from v1.9.8 are retained.
