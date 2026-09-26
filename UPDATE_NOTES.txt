@@ -1,13 +1,9 @@
-THE MAMMAL VAULT — v2.0.4 VERIFIED IMAGE INPUT UPDATE
+The Mammal Vault v2.0.5
 
-This is a replacement-file update for the existing GitHub Pages repository.
-Keep data.js and embedded_images.js from the existing repository. Replace the files in this package; do not delete the existing data files.
-
-Image input changes:
-- Multiple image files can be selected and saved in one batch.
-- The batch saves all selected images before the page re-renders.
-- Clipboard image paste uses the browser paste event rather than requiring direct clipboard permission.
-- Pasted images are shown in a confirmation preview before being saved, preventing an unintended screenshot or other clipboard image from being added accidentally.
-- The direct navigator.clipboard image-read path is not used.
-- Duplicate paste listeners were removed.
-- Version/cache references are synchronized to 2.0.4.
+Multi-box quiz image masking update.
+- Each specimen image can have multiple independent blur or cover boxes.
+- Boxes can be added, selected, moved, resized, changed between blur/cover, and removed.
+- Existing single-box quiz masks remain compatible.
+- Each image keeps its own mask layout.
+- Add Species image workflow supports multiple mask boxes before the species is saved.
+- Quiz renders every saved mask box for that image.
