@@ -286,7 +286,7 @@ function renderQuiz(app){
   app.innerHTML=shell(`${state.mystery?'Mystery Specimen':modeLabel()} — Question ${state.session.q} of ${state.length}`,`
     <div class="progressbar"><span style="width:${pct}%"></span></div>
     <div class="quiz-card">
-      <div class="image-wrap ${imageClass}" style="--quiz-mask-height:${maskHeight}%"><img src="${esc(imageSrc)}" alt="${esc(s.common)} specimen" ${labelMode==='show'?`onclick="openLightbox('${esc(imageSrc)}')"`:''}>${quizMaskBoxes.map((b,n)=>`<div class="quiz-custom-mask ${b.mode==='hide'?'quiz-mask-hide':'quiz-mask-blur'}" style="left:${b.x}%;top:${b.y}%;width:${b.w}%;height:${b.h}%;--quiz-mask-blur:${Number(b.blur||14)}px" aria-label="Quiz hidden area ${n+1}"></div>`).join('')}</div>
+      <div class="image-wrap ${imageClass}" style="--quiz-mask-height:${maskHeight}%"><div class="quiz-image-canvas"><img src="${esc(imageSrc)}" alt="${esc(s.common)} specimen" ${labelMode==='show'?`onclick="openLightbox('${esc(imageSrc)}')"`:''}>${quizMaskBoxes.map((b,n)=>`<div class="quiz-custom-mask ${b.mode==='hide'?'quiz-mask-hide':'quiz-mask-blur'}" style="left:${b.x}%;top:${b.y}%;width:${b.w}%;height:${b.h}%;--quiz-mask-blur:${Number(b.blur||14)}px" aria-label="Quiz hidden area ${n+1}"></div>`).join('')}</div></div>
       <div class="quiz-side">
         <div class="image-meta">${i.custom?'Your added image':'Course image'} · ${(i.viewTypes||['mixed']).join(', ')}</div>
         ${state.mode!=='family'?`<label>Scientific name<input id="scientificInput" ${disabled} autocomplete="off" spellcheck="false" placeholder="Genus species"></label>`:''}
@@ -748,9 +748,9 @@ function openMaskEditor(src,initial,onSave,title='Set quiz text areas'){
   const boxes=normalizeQuizMaskBoxes(initial).map(x=>({...x,id:x.id||('mask-'+Math.random().toString(36).slice(2))}));
   let selectedId=boxes[0]?.id||null;
   const modal=document.createElement('div');modal.id='imageMaskEditor';modal.className='mask-editor-backdrop';
-  modal.innerHTML=`<div class="mask-editor-panel"><div class="mask-editor-head"><div><h2>${esc(title)}</h2><p>Add as many independent blur/cover boxes as you need. Drag a box to move it; drag its corner to resize it.</p></div><button type="button" onclick="closeImageMaskEditor()">✕</button></div><div class="mask-editor-stage" id="maskStage"><img id="maskEditorImage" src="${esc(src)}"><div id="maskBoxes"></div></div><div class="mask-editor-add-row"><button type="button" id="addBlurBox">＋ Add blur box</button><button type="button" id="addCoverBox">＋ Add cover box</button><span id="maskBoxCount" class="muted"></span></div><div class="mask-editor-controls"><label>Selected box <select id="maskBoxSelect"></select></label><label>Blur strength <input id="maskBlur" type="range" min="4" max="30" value="14"><output>14px</output></label><label>Mode <select id="maskMode"><option value="blur">Blur</option><option value="hide">Cover</option></select></label><button type="button" class="danger" id="removeMaskBox">Remove selected box</button></div><div class="button-row"><button type="button" id="clearAllMaskBoxes">Clear all boxes</button><button type="button" id="saveMaskBtn" class="primary">Save ${boxes.length?'text areas':'text areas'}</button><button type="button" onclick="closeImageMaskEditor()">Cancel</button></div></div>`;
+  modal.innerHTML=`<div class="mask-editor-panel"><div class="mask-editor-head"><div><h2>${esc(title)}</h2><p>Add as many independent blur/cover boxes as you need. Drag a box to move it; drag its corner to resize it.</p></div><button type="button" onclick="closeImageMaskEditor()">✕</button></div><div class="mask-editor-stage" id="maskStage"><div class="mask-image-layer" id="maskImageLayer"><img id="maskEditorImage" src="${esc(src)}"><div id="maskBoxes"></div></div></div><div class="mask-editor-add-row"><button type="button" id="addBlurBox">＋ Add blur box</button><button type="button" id="addCoverBox">＋ Add cover box</button><span id="maskBoxCount" class="muted"></span></div><div class="mask-editor-controls"><label>Selected box <select id="maskBoxSelect"></select></label><label>Blur strength <input id="maskBlur" type="range" min="4" max="30" value="14"><output>14px</output></label><label>Mode <select id="maskMode"><option value="blur">Blur</option><option value="hide">Cover</option></select></label><button type="button" class="danger" id="removeMaskBox">Remove selected box</button></div><div class="button-row"><button type="button" id="clearAllMaskBoxes">Clear all boxes</button><button type="button" id="saveMaskBtn" class="primary">Save text areas</button><button type="button" onclick="closeImageMaskEditor()">Cancel</button></div></div>`;
   document.body.appendChild(modal);
-  const stage=modal.querySelector('#maskStage'),img=modal.querySelector('#maskEditorImage'),boxLayer=modal.querySelector('#maskBoxes'),select=modal.querySelector('#maskBoxSelect'),blur=modal.querySelector('#maskBlur'),blurOut=blur.nextElementSibling,mode=modal.querySelector('#maskMode'),count=modal.querySelector('#maskBoxCount');
+  const stage=modal.querySelector('#maskStage'),layer=modal.querySelector('#maskImageLayer'),img=modal.querySelector('#maskEditorImage'),boxLayer=modal.querySelector('#maskBoxes'),select=modal.querySelector('#maskBoxSelect'),blur=modal.querySelector('#maskBlur'),blurOut=blur.nextElementSibling,mode=modal.querySelector('#maskMode'),count=modal.querySelector('#maskBoxCount');
   const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
   function selected(){return boxes.find(b=>b.id===selectedId)||null}
   function syncControls(){
@@ -767,14 +767,29 @@ function openMaskEditor(src,initial,onSave,title='Set quiz text areas'){
       const el=document.createElement('div');el.className='mask-box'+(b.id===selectedId?' selected':'');el.dataset.id=b.id;el.style.left=b.x+'%';el.style.top=b.y+'%';el.style.width=b.w+'%';el.style.height=b.h+'%';el.innerHTML=`<span>${b.mode==='hide'?'COVER':'BLUR'} ${i+1}</span><i class="mask-resize"></i>`;
       boxLayer.appendChild(el);
       let dragging=false,resizing=false,sx=0,sy=0,start={...b};
-      el.addEventListener('pointerdown',e=>{selectedId=b.id;syncControls();boxLayer.querySelectorAll('.mask-box').forEach(x=>x.classList.toggle('selected',x.dataset.id===selectedId));dragging=!e.target.classList.contains('mask-resize');resizing=!dragging;sx=e.clientX;sy=e.clientY;start={...b};el.setPointerCapture(e.pointerId);e.preventDefault();e.stopPropagation()});
-      el.addEventListener('pointermove',e=>{if(!dragging&&!resizing)return;const r=stage.getBoundingClientRect(),dx=(e.clientX-sx)/r.width*100,dy=(e.clientY-sy)/r.height*100;if(dragging){b.x=clamp(start.x+dx,0,100-b.w);b.y=clamp(start.y+dy,0,100-b.h)}else{b.w=clamp(start.w+dx,5,100-start.x);b.h=clamp(start.h+dy,5,100-start.y)}el.style.left=b.x+'%';el.style.top=b.y+'%';el.style.width=b.w+'%';el.style.height=b.h+'%';});
+      el.addEventListener('pointerdown',e=>{
+        selectedId=b.id;syncControls();renderBoxes();
+        dragging=!e.target.classList.contains('mask-resize');resizing=!dragging;
+        sx=e.clientX;sy=e.clientY;start={...b};
+        el.setPointerCapture?.(e.pointerId);e.preventDefault();e.stopPropagation();
+      });
+      el.addEventListener('pointermove',e=>{
+        if(!dragging&&!resizing)return;
+        const r=layer.getBoundingClientRect();
+        if(!r.width||!r.height)return;
+        const dx=(e.clientX-sx)/r.width*100,dy=(e.clientY-sy)/r.height*100;
+        if(dragging){b.x=clamp(start.x+dx,0,100-b.w);b.y=clamp(start.y+dy,0,100-b.h)}
+        else{b.w=clamp(start.w+dx,5,100-start.x);b.h=clamp(start.h+dy,5,100-start.y)}
+        el.style.left=b.x+'%';el.style.top=b.y+'%';el.style.width=b.w+'%';el.style.height=b.h+'%';
+      });
       el.addEventListener('pointerup',()=>{dragging=false;resizing=false});
+      el.addEventListener('pointercancel',()=>{dragging=false;resizing=false});
     });
     syncControls();
   }
   function addBox(boxMode){
-    const offset=Math.min(boxes.length*4,25);const b={...defaultQuizMask(),id:'mask-'+Math.random().toString(36).slice(2),x:Math.min(70,10+offset),y:Math.min(70,10+offset),w:30,h:15,mode:boxMode};boxes.push(b);selectedId=b.id;renderBoxes();
+    const offset=Math.min(boxes.length*4,25);const b={...defaultQuizMask(),id:'mask-'+Math.random().toString(36).slice(2),x:Math.min(70,10+offset),y:Math.min(70,10+offset),w:30,h:15,mode:boxMode};
+    boxes.push(b);selectedId=b.id;renderBoxes();
   }
   modal.querySelector('#addBlurBox').onclick=()=>addBox('blur');
   modal.querySelector('#addCoverBox').onclick=()=>addBox('hide');
@@ -784,9 +799,13 @@ function openMaskEditor(src,initial,onSave,title='Set quiz text areas'){
   modal.querySelector('#removeMaskBox').onclick=()=>{const i=boxes.findIndex(b=>b.id===selectedId);if(i<0)return;boxes.splice(i,1);selectedId=boxes[i]?.id||boxes[i-1]?.id||null;renderBoxes()};
   modal.querySelector('#clearAllMaskBoxes').onclick=()=>{boxes.length=0;selectedId=null;renderBoxes()};
   modal.querySelector('#saveMaskBtn').onclick=()=>{onSave(boxes.length?{version:2,boxes:boxes.map(({id,...b})=>({...b}))}:null);closeImageMaskEditor()};
-  img.onload=renderBoxes;renderBoxes();
+  img.onload=()=>{requestAnimationFrame(renderBoxes)};
+  const onResize=()=>renderBoxes();
+  window.addEventListener('resize',onResize,{passive:true});
+  modal._maskCleanup=()=>window.removeEventListener('resize',onResize);
+  renderBoxes();
 }
-function closeImageMaskEditor(){document.getElementById('imageMaskEditor')?.remove()}
+function closeImageMaskEditor(){const m=document.getElementById('imageMaskEditor');if(m){m._maskCleanup?.();m.remove()}}
 function openPendingSpeciesMaskEditor(index){const x=state.pendingSpeciesImages[index];if(!x)return;openMaskEditor(x.dataUrl,x.quizMask,(mask)=>{x.quizMask=mask;renderAddSpecies($('app'))},'Set quiz text areas for this new image')}
 async function openImageMaskEditor(id){const im=state.customImages.find(x=>x.id===id);const course=imgsForSelectedSpecies().find(x=>x.id===id);const target=im||course;if(!target)return;openMaskEditor(target.dataUrl||target.data,target.quizMask,(mask)=>{if(target.custom){target.quizMask=mask;dbPut(IMG_STORE,target).then(refreshStudyData).then(render)}else{if(mask)state.maskOverrides[id]=mask;else delete state.maskOverrides[id];saveMasks();render()}},'Set quiz text areas for this image')}
 function imgsForSelectedSpecies(){const s=selectedSpecies();return s?allImages(s):[]}
