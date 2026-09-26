@@ -187,17 +187,19 @@ function resolveEditedImage(im){
   const edit=state.imageEdits?.[im.id];
   return edit?.dataUrl?{...im,data:edit.dataUrl,edited:true}:im;
 }
-function pickStudyCheckImage(s){const imgs=s?allImages(s).map(resolveEditedImage).filter(Boolean):[];if(!imgs.length)return null;return imgs[Math.floor(Math.random()*imgs.length)].id}
+function pickStudyCheckImage(s){const imgs=s?allImages(s).map(resolveEditedImage).filter(Boolean):[];if(!imgs.length)return null;return imgs[Math.floor(Math.random()*imgs.length)]}
 function studyCheckImage(s){
   const imgs=s?allImages(s).map(resolveEditedImage).filter(Boolean):[];
   if(!imgs.length)return null;
-  const id=state.studyCheck?.imageId;
-  return imgs.find(x=>x.id===id)||imgs[Math.floor(Math.random()*imgs.length)];
+  const saved=state.studyCheck?.image;
+  if(saved?.id){const current=imgs.find(x=>x.id===saved.id);if(current)return current;}
+  return imgs[Math.floor(Math.random()*imgs.length)];
 }
 function openSpeciesStudyCheck(id){
   state.selectedSpeciesId=id||state.selectedSpeciesId||speciesList()[0]?.id||null;
   const s=selectedSpecies();
-  state.studyCheck={sections:{identity:true,field:true},index:0,passed:[],message:'',imageId:pickStudyCheckImage(s)};
+  const firstImage=pickStudyCheckImage(s);
+  state.studyCheck={sections:{identity:true,field:true},index:0,passed:[],message:'',image:firstImage?{id:firstImage.id,data:firstImage.data,edited:!!firstImage.edited}:null,imageId:firstImage?.id||null};
   state.screen='studyCheck';render();
 }
 function studyCheckQuestions(s){
@@ -262,7 +264,7 @@ function checkStudySpeciesAnswer(){
 }
 function advanceStudySpeciesCheck(){
   const s=selectedSpecies(); const enabled=enabledStudyQuestions(s); const passed=new Set(state.studyCheck.passed||[]);
-  if(state.studyCheck.index<enabled.length-1){state.studyCheck.index++;state.studyCheck.message='';state.studyCheck.imageId=pickStudyCheckImage(s);render();}
+  if(state.studyCheck.index<enabled.length-1){state.studyCheck.index++;state.studyCheck.message='';const nextImage=pickStudyCheckImage(s);state.studyCheck.image=nextImage?{id:nextImage.id,data:nextImage.data,edited:!!nextImage.edited}:null;state.studyCheck.imageId=nextImage?.id||null;render();}
   else if(passed.size>=enabled.length)render();
 }
 function cardMode(id){
@@ -1047,6 +1049,7 @@ Object.assign(window,{
   saveCard,editCard,deleteCard,editSpeciesInfo,openEditSpecies,closeEditSpecies,saveEditedSpecies,cardEditorSpeciesChanged,selectEditorImage,setEditorImagePlacement,
   handlePaste,pasteImageFromClipboard,handleFiles,saveImageFile,removeCustomImage,setImageTag,openPendingSpeciesMaskEditor,openPendingSpeciesImageEditor,openImageMaskEditor,openImageEditor,resetImageEdit,closeImageEditor,clearImageMask,closeImageMaskEditor,handleNewSpeciesFiles,removePendingSpeciesImage,captureAddSpeciesForm,importGooglePhotosToSpecies,saveGooglePhotosSettings,
   toggleFavorite,openLightbox,closeLightbox,
+  toggleStudyCheckSection,checkStudySpeciesAnswer,advanceStudySpeciesCheck,openSpeciesStudyCheck,
   enableAllFeatures,disableOptionalFeatures,setFeature,
   addSpeciesFromForm,filterSpeciesLibrary,openManageLibrary,resetProgress,exportBackup,triggerImportBackup,importBackup,
   changeTheme,resetHomeCustomization,addHomeBlock,removeHomeBlock,updateHomeBlock,addImageType,removeImageType,

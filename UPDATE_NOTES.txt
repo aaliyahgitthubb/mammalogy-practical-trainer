@@ -1,12 +1,10 @@
-VERSION 2.1.2 — Study Species Random Image
+VERSION 2.1.4 — Study Species edited-image and question-toggle repair
 
-Includes the 2.1.1 Study Species system plus:
-- Displays one randomly selected image associated with the selected species during Study Species.
-- A new random image is selected when Study Species starts and when advancing to the next question.
-- Uses the species image collection, including source/course images and custom images uploaded for that species.
-- Shows a clear message if no images are available.
-- Retains the 1–4 and 5–8 toggles, answer checking, and Edit Species answer key.
+Fixes:
+- Study Species now stores the resolved edited specimen image for the active question, so the displayed image is the saved edited copy rather than a later fallback to the original.
+- Built-in images use the saved mammalogy-image-edits copy when available.
+- Uploaded images use their saved editedDataUrl when available.
+- Study Species 1–4 and 5–8 question toggles are now exposed to the page event handlers so clicking them actually changes the selected question groups.
+- Toggling a section updates the question count, progress, current question, and completion state immediately.
 
 Keep existing data.js and embedded_images.js.
-
-2.1.3 — Study Species now explicitly resolves saved edited images for both built-in and uploaded specimen images before display. Cache-busted app version updated to 2.1.3.
