@@ -768,7 +768,9 @@ function openMaskEditor(src,initial,onSave,title='Set quiz text areas'){
       boxLayer.appendChild(el);
       let dragging=false,resizing=false,sx=0,sy=0,start={...b};
       el.addEventListener('pointerdown',e=>{
-        selectedId=b.id;syncControls();renderBoxes();
+        selectedId=b.id;
+        boxLayer.querySelectorAll('.mask-box').forEach(node=>node.classList.toggle('selected',node.dataset.id===selectedId));
+        syncControls();
         dragging=!e.target.classList.contains('mask-resize');resizing=!dragging;
         sx=e.clientX;sy=e.clientY;start={...b};
         el.setPointerCapture?.(e.pointerId);e.preventDefault();e.stopPropagation();

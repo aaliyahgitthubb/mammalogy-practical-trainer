@@ -1,4 +1,4 @@
-The Mammal Vault v2.0.6 — Multi-Box Image Masking Coordinate Fix
+The Mammal Vault v2.0.7 — Multi-Box Image Masking Coordinate Fix
 
 Replace the update files in the existing GitHub Pages repository.
 KEEP data.js and embedded_images.js unchanged.
