@@ -588,15 +588,15 @@ function renderManage(app){
       ${imageCategoryManagerHtml()}
       <section class="study-main">
         <div class="species-heading"><div><h2>${esc(s.common)}</h2><p>${sciHtml(s.scientific)} · ${esc(s.family||'Unclassified')}</p></div><div class="button-row"><button onclick="setScreen('study')">Study this species</button></div></div>
-        <div class="paste-box" id="pasteBox" tabindex="0"><strong>📋 Paste an image here</strong><span>Copy an image, then use the button below or click here and press <b>Ctrl + V</b>.</span><button type="button" class="primary" onclick="pasteImageFromClipboard()">📋 Paste from Clipboard</button></div>
+        <div class="paste-box" id="pasteBox" tabindex="0"><strong>📋 Paste an image here</strong><span>Click this area, then press <b>Ctrl + V</b>. The image is shown for confirmation before it is saved.</span><button type="button" class="primary" onclick="preparePasteImage()">📋 Prepare for Ctrl + V</button></div>
         <div class="upload-row"><label class="file-button">📁 Add multiple images<input id="imageFiles" type="file" accept="image/*" multiple onchange="handleFiles(this.files);resetImageFileInput(this)"></label><button type="button" onclick="importGooglePhotosToSpecies()">📷 Add from Google Photos</button><select id="newImageType">${imageTypeOptions()}</select></div><p class="muted batch-upload-help">You can select multiple image files at once. Each image will be added to this species and can be edited or masked individually.</p><div id="batchUploadStatus" class="batch-upload-status" aria-live="polite"></div><p class="muted google-photos-help"><b>Google Photos privacy:</b> Search for the animal/species you want, then select 1–2 images. Only photos you select are imported into this Vault.</p>
         <div class="image-grid">${imgs.map(i=>`<div class="image-admin"><img src="${esc(i.data)}" onclick="openLightbox('${esc(i.data)}')"><div class="image-admin-meta"><span>${i.custom?'Your image':'Course image'}${i.edited?' · Edited':''}</span><select onchange="setImageTag('${esc(i.id)}',this.value)">${imageTypeOptions((i.viewTypes||[])[0]||'mixed')}</select><button type="button" onclick="openImageEditor('${esc(i.id)}')">✏️ Edit image</button><button type="button" onclick="openImageMaskEditor('${esc(i.id)}')">${i.quizMask?'Edit quiz text area':'Set quiz text area'}</button>${i.edited?`<button type="button" onclick="resetImageEdit('${esc(i.id)}')">Reset image edit</button>`:''}${i.quizMask?`<button type="button" onclick="clearImageMask('${esc(i.id)}')">Clear quiz mask</button>`:''}${i.custom?`<button class="danger" onclick="removeCustomImage('${esc(i.id)}')">Delete</button>`:''}</div></div>`).join('')}</div>
       </section>
     </div>
   `);
-  setTimeout(()=>{$('pasteBox')?.focus();$('pasteBox')?.addEventListener('paste',handlePaste)},0)
 }
 let pasteImageHandlerInstalled=false;
+let pendingPastedImage=null;
 function installPasteImageHandler(){
   if(pasteImageHandlerInstalled)return;
   pasteImageHandlerInstalled=true;
@@ -604,11 +604,12 @@ function installPasteImageHandler(){
     if(state.screen!=='manage'||!selectedSpecies())return;
     const target=e.target;
     if(target && (target.tagName==='INPUT'||target.tagName==='TEXTAREA'||target.isContentEditable))return;
-    const item=[...(e.clipboardData?.items||[])].find(x=>x.type.startsWith('image/'));
+    const item=[...(e.clipboardData?.items||[])].find(x=>x.kind==='file'&&x.type.startsWith('image/'));
     if(!item)return;
-    e.preventDefault();
     const file=item.getAsFile();
-    if(file)await saveImageFile(file,currentImageType());
+    if(!file)return;
+    e.preventDefault();
+    showPastedImagePreview(file);
   });
 }
 installPasteImageHandler();
@@ -619,47 +620,72 @@ function filterSpeciesLibrary(){
   });
 }
 function currentImageType(){return $('newImageType')?.value||'mixed'}
+function preparePasteImage(){
+  if(state.screen!=='manage'||!selectedSpecies()){alert('Select a species first.');return}
+  const box=$('pasteBox');
+  if(box)box.focus();
+  const status=$('batchUploadStatus');
+  if(status)status.textContent='Ready — press Ctrl + V to paste the image you copied.';
+}
+function showPastedImagePreview(file){
+  closePastedImagePreview();
+  pendingPastedImage=file;
+  const modal=document.createElement('div');
+  modal.id='pastedImagePreview';
+  modal.className='image-editor-backdrop';
+  const src=URL.createObjectURL(file);
+  modal.innerHTML=`<div class="image-editor-panel" style="max-width:760px"><div class="image-editor-head"><div><h2>Confirm pasted image</h2><p>Check that this is the animal image you intended to paste before saving it.</p></div><button type="button" onclick="closePastedImagePreview()">✕</button></div><div style="text-align:center;padding:12px"><img id="pastedPreviewImage" src="${esc(src)}" style="max-width:100%;max-height:60vh;object-fit:contain;border-radius:10px"></div><div class="button-row"><button type="button" onclick="closePastedImagePreview()">Cancel</button><button type="button" class="primary" onclick="confirmPastedImage()">Add this image</button></div></div>`;
+  document.body.appendChild(modal);
+  modal.dataset.objectUrl=src;
+}
+function closePastedImagePreview(){
+  const modal=document.getElementById('pastedImagePreview');
+  if(modal?.dataset.objectUrl)URL.revokeObjectURL(modal.dataset.objectUrl);
+  modal?.remove();
+  pendingPastedImage=null;
+}
+async function confirmPastedImage(){
+  const file=pendingPastedImage;
+  if(!file)return;
+  const status=$('batchUploadStatus');
+  try{
+    if(status)status.textContent='Adding pasted image…';
+    await saveImageFile(file,currentImageType(),false);
+    closePastedImagePreview();
+    await refreshStudyData();
+    render();
+    const finalStatus=$('batchUploadStatus');
+    if(finalStatus)finalStatus.textContent='✓ Pasted image added.';
+  }catch(err){
+    console.error('Pasted image save failed:',err);
+    if(status)status.textContent='Could not save the pasted image.';
+  }
+}
 async function handlePaste(e){
   const items=[...(e.clipboardData?.items||[])];
-  const item=items.find(x=>x.type.startsWith('image/'));
+  const item=items.find(x=>x.kind==='file'&&x.type.startsWith('image/'));
   if(!item)return;
   e.preventDefault?.();
   const file=item.getAsFile();
-  if(file)await saveImageFile(file,currentImageType());
+  if(file)showPastedImagePreview(file);
 }
-
-async function pasteImageFromClipboard(){
-  if(state.screen!=='manage'||!selectedSpecies()){alert('Select a species first.');return}
-  // Some browsers (including Opera in this configuration) intentionally block
-  // the asynchronous clipboard API for images on GitHub Pages. Do not treat that
-  // as a failure of the paste feature: focus the paste target and let the
-  // browser's normal Ctrl+V paste event provide the image File instead.
-  const box=$('pasteBox');
-  if(box){
-    box.focus();
-    const status=$('batchUploadStatus');
-    if(status)status.textContent='Ready for image paste — press Ctrl + V now.';
-    return;
-  }
-  const status=$('batchUploadStatus');
-  if(status)status.textContent='Click the Paste an image here area, then press Ctrl + V.';
-}
+async function pasteImageFromClipboard(){preparePasteImage()}
 async function handleFiles(files){
   const list=[...(files||[])].filter(f=>f?.type?.startsWith('image/'));
   if(!list.length)return;
   const status=$('batchUploadStatus');
   if(status)status.textContent=`Adding ${list.length} image${list.length===1?'':'s'}…`;
   const type=currentImageType();
-  let added=0;
+  let added=0,failed=0;
   for(const f of list){
-    try{await saveImageFile(f,type,false);added++;}
-    catch(err){console.error('Image upload failed:',f?.name,err)}
+    try{await saveImageFile(f,type,false);added++}
+    catch(err){failed++;console.error('Image upload failed:',f?.name,err)}
     if(status)status.textContent=`Added ${added} of ${list.length} image${list.length===1?'':'s'}…`;
   }
   await refreshStudyData();
   render();
   const finalStatus=$('batchUploadStatus');
-  if(finalStatus)finalStatus.textContent=`✓ Added ${added} of ${list.length} image${list.length===1?'':'s'}.`;
+  if(finalStatus)finalStatus.textContent=failed?`✓ Added ${added} of ${list.length}; ${failed} failed.`:`✓ Added ${added} of ${list.length} images.`;
 }
 function resetImageFileInput(input){if(input)input.value=''}
 function imageEditorDefault(){return {rotation:0,flipX:false,flipY:false,brightness:100,contrast:100,saturation:100,crop:{x:0,y:0,w:100,h:100}}}

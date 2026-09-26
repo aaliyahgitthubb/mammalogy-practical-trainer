@@ -1,10 +1,13 @@
-The Mammal Vault v2.0.3
+THE MAMMAL VAULT — v2.0.4 VERIFIED IMAGE INPUT UPDATE
 
-Clipboard paste reliability update
-- Removed the browser-restricted navigator.clipboard.read() dependency from the Paste button workflow.
-- Paste button now focuses the Paste an image here area and gives an inline instruction to press Ctrl+V.
-- Existing document paste-event handling receives image data from the browser clipboard when the browser permits normal paste events.
-- Multi-image file upload remains enabled and saves the complete selected batch before refreshing.
-- Version and service-worker cache references synchronized to 2.0.3.
+This is a replacement-file update for the existing GitHub Pages repository.
+Keep data.js and embedded_images.js from the existing repository. Replace the files in this package; do not delete the existing data files.
 
-Safe replacement update: leave the existing data.js and embedded_images.js in the repository.
+Image input changes:
+- Multiple image files can be selected and saved in one batch.
+- The batch saves all selected images before the page re-renders.
+- Clipboard image paste uses the browser paste event rather than requiring direct clipboard permission.
+- Pasted images are shown in a confirmation preview before being saved, preventing an unintended screenshot or other clipboard image from being added accidentally.
+- The direct navigator.clipboard image-read path is not used.
+- Duplicate paste listeners were removed.
+- Version/cache references are synchronized to 2.0.4.
