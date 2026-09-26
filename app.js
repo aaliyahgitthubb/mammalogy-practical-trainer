@@ -589,7 +589,7 @@ function renderManage(app){
       <section class="study-main">
         <div class="species-heading"><div><h2>${esc(s.common)}</h2><p>${sciHtml(s.scientific)} · ${esc(s.family||'Unclassified')}</p></div><div class="button-row"><button onclick="setScreen('study')">Study this species</button></div></div>
         <div class="paste-box" id="pasteBox" tabindex="0"><strong>📋 Paste an image here</strong><span>Copy an image, then use the button below or click here and press <b>Ctrl + V</b>.</span><button type="button" class="primary" onclick="pasteImageFromClipboard()">📋 Paste from Clipboard</button></div>
-        <div class="upload-row"><label class="file-button">Add image files<input id="imageFiles" type="file" accept="image/*" multiple onchange="handleFiles(this.files)"></label><button type="button" onclick="importGooglePhotosToSpecies()">📷 Add from Google Photos</button><select id="newImageType">${imageTypeOptions()}</select></div><p class="muted google-photos-help"><b>Google Photos privacy:</b> Search for the animal/species you want, then select 1–2 images. Only photos you select are imported into this Vault.</p>
+        <div class="upload-row"><label class="file-button">📁 Add multiple images<input id="imageFiles" type="file" accept="image/*" multiple onchange="handleFiles(this.files)"></label><button type="button" onclick="importGooglePhotosToSpecies()">📷 Add from Google Photos</button><select id="newImageType">${imageTypeOptions()}</select></div><p class="muted batch-upload-help">You can select multiple image files at once. Each image will be added to this species and can be edited or masked individually.</p><div id="batchUploadStatus" class="batch-upload-status" aria-live="polite"></div><p class="muted google-photos-help"><b>Google Photos privacy:</b> Search for the animal/species you want, then select 1–2 images. Only photos you select are imported into this Vault.</p>
         <div class="image-grid">${imgs.map(i=>`<div class="image-admin"><img src="${esc(i.data)}" onclick="openLightbox('${esc(i.data)}')"><div class="image-admin-meta"><span>${i.custom?'Your image':'Course image'}${i.edited?' · Edited':''}</span><select onchange="setImageTag('${esc(i.id)}',this.value)">${imageTypeOptions((i.viewTypes||[])[0]||'mixed')}</select><button type="button" onclick="openImageEditor('${esc(i.id)}')">✏️ Edit image</button><button type="button" onclick="openImageMaskEditor('${esc(i.id)}')">${i.quizMask?'Edit quiz text area':'Set quiz text area'}</button>${i.edited?`<button type="button" onclick="resetImageEdit('${esc(i.id)}')">Reset image edit</button>`:''}${i.quizMask?`<button type="button" onclick="clearImageMask('${esc(i.id)}')">Clear quiz mask</button>`:''}${i.custom?`<button class="danger" onclick="removeCustomImage('${esc(i.id)}')">Delete</button>`:''}</div></div>`).join('')}</div>
       </section>
     </div>
@@ -652,7 +652,20 @@ async function pasteImageFromClipboard(){
     alert('The browser blocked clipboard access. Try clicking the paste area and pressing Ctrl + V, or allow clipboard access for this site.');
   }
 }
-async function handleFiles(files){for(const f of files)await saveImageFile(f,currentImageType())}
+async function handleFiles(files){
+  const list=[...(files||[])].filter(f=>f?.type?.startsWith('image/'));
+  if(!list.length)return;
+  const status=$('batchUploadStatus');
+  if(status)status.textContent=`Adding ${list.length} image${list.length===1?'':'s'}…`;
+  const type=currentImageType();
+  let added=0;
+  for(const f of list){
+    try{await saveImageFile(f,type);added++;}
+    catch(err){console.error('Image upload failed:',f?.name,err)}
+    if(status)status.textContent=`Added ${added} of ${list.length} image${list.length===1?'':'s'}…`;
+  }
+  if(status)status.textContent=`✓ Added ${added} of ${list.length} image${list.length===1?'':'s'}.`;
+}
 function imageEditorDefault(){return {rotation:0,flipX:false,flipY:false,brightness:100,contrast:100,saturation:100,crop:{x:0,y:0,w:100,h:100}}}
 function openImageEditor(id){
   const im=imgsForSelectedSpecies().find(x=>x.id===id);if(!im)return;

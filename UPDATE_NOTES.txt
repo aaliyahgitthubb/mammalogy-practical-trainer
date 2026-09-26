@@ -1,3 +1,9 @@
-v1.9.9 — Paste Image / Version Synchronization Fix
+v2.0.0 — Reliable Image Pasting + Multi-Image Upload
 
-This update synchronizes index.html, app.js, sw.js, and version.json so GitHub Pages loads the same current application code. The image paste tools from v1.9.8 are retained.
+This update keeps the existing Mammal Vault features and adds:
+- More reliable image pasting using Ctrl+V / the paste area, with the existing clipboard button retained as a best-effort option.
+- A clearly labeled “Add multiple images” upload control.
+- Multiple image files can be selected and added to the same species in one batch.
+- Batch upload progress/status so you can see how many images have been added.
+- Each uploaded image remains individually editable and can have its own quiz text mask.
+- index.html, app.js, sw.js, and version.json are synchronized to v2.0.0 to prevent stale-code loading.
