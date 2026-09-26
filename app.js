@@ -630,30 +630,19 @@ async function handlePaste(e){
 
 async function pasteImageFromClipboard(){
   if(state.screen!=='manage'||!selectedSpecies()){alert('Select a species first.');return}
-  if(navigator.clipboard?.read){
-    try{
-      const items=await navigator.clipboard.read();
-      for(const item of items){
-        const type=item.types.find(t=>String(t).startsWith('image/'));
-        if(!type)continue;
-        const blob=await item.getType(type);
-        if(blob&&blob.type.startsWith('image/')){
-          const file=new File([blob],`Pasted image.${type.split('/')[1]||'png'}`,{type:blob.type});
-          await saveImageFile(file,currentImageType());
-          return;
-        }
-      }
-    }catch(err){
-      console.warn('Clipboard image read unavailable; using paste-event fallback.',err);
-    }
-  }
+  // Some browsers (including Opera in this configuration) intentionally block
+  // the asynchronous clipboard API for images on GitHub Pages. Do not treat that
+  // as a failure of the paste feature: focus the paste target and let the
+  // browser's normal Ctrl+V paste event provide the image File instead.
   const box=$('pasteBox');
   if(box){
     box.focus();
-    alert('Clipboard image access is restricted in this browser. Click OK, then press Ctrl + V while the Paste an image here area is focused.');
-  }else{
-    alert('Clipboard image access is restricted in this browser. Use Ctrl + V on the Paste an image area.');
+    const status=$('batchUploadStatus');
+    if(status)status.textContent='Ready for image paste — press Ctrl + V now.';
+    return;
   }
+  const status=$('batchUploadStatus');
+  if(status)status.textContent='Click the Paste an image here area, then press Ctrl + V.';
 }
 async function handleFiles(files){
   const list=[...(files||[])].filter(f=>f?.type?.startsWith('image/'));
