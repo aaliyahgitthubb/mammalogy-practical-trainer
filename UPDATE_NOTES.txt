@@ -1,8 +1,10 @@
-Mammal Vault v2.1.0
-- Added a clearly visible Edit Species button directly on every species in Manage Species & Images.
-- Edit Species can correct common name, scientific name, family, notes, and identification clues.
-- Edit Species functions are exposed correctly to the page buttons.
-- Rebuilt Blur/Cover dragging with a desktop mouse + touch fallback instead of relying on pointer capture.
-- Blur and Cover boxes share the same drag controller and can be moved anywhere within the image.
-- Resizing remains available from the lower-right handle.
-- Existing data.js and embedded_images.js are intentionally not included; keep your existing copies.
+VERSION 2.1.2 — Study Species Random Image
+
+Includes the 2.1.1 Study Species system plus:
+- Displays one randomly selected image associated with the selected species during Study Species.
+- A new random image is selected when Study Species starts and when advancing to the next question.
+- Uses the species image collection, including source/course images and custom images uploaded for that species.
+- Shows a clear message if no images are available.
+- Retains the 1–4 and 5–8 toggles, answer checking, and Edit Species answer key.
+
+Keep existing data.js and embedded_images.js.

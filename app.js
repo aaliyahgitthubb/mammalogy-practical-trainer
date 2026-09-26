@@ -21,7 +21,7 @@ const state={
   subject:'mammalogy', screen:'home', mode:'full', length:20, current:null, answered:false, editor:null,
   session:{q:0,correct:0,points:0,totalPoints:0}, lastSpecies:null, focusMissed:false,
   customImages:[], customSpecies:[], pendingSpeciesImages:[], tagOverrides:{}, maskOverrides:{}, imageEdits:{}, cards:[], speciesInfo:{}, homeImages:[], homeConfig:null,
-  maskEditor:null, cardBankQuery:'', cardBankSpecies:'', pendingSpeciesForm:{common:'',scientific:'',family:'',notes:'',clues:''}, selectedSpeciesId:null, studyMode:'browse', studyIndex:0, studyFlipped:false, studyTagFilter:'', noteFlashcardStatus:'', sessionPlan:null, mystery:false, features:null, favorites:[]
+  maskEditor:null, cardBankQuery:'', cardBankSpecies:'', pendingSpeciesForm:{common:'',scientific:'',family:'',notes:'',clues:''}, selectedSpeciesId:null, studyMode:'browse', studyIndex:0, studyFlipped:false, studyTagFilter:'', noteFlashcardStatus:'', sessionPlan:null, mystery:false, features:null, favorites:[], studyCheck:{sections:{identity:true,field:true},index:0,passed:[],message:'',imageId:null}
 };
 function loadSpeciesEdits(){try{return JSON.parse(localStorage.getItem(subjectKey('mammalogy-species-edits'))||'{}')}catch{return {}}}
 function saveSpeciesEdits(v){localStorage.setItem(subjectKey('mammalogy-species-edits'),JSON.stringify(v||{}))}
@@ -177,6 +177,79 @@ function speciesProgress(id){return loadProgress()[id]||{seen:0,correct:0,wrong:
 function cardsFor(id){return state.cards.filter(c=>c.speciesId===id).sort((a,b)=>(a.order??0)-(b.order??0))}
 function selectedSpecies(){return speciesById(state.selectedSpeciesId)||speciesList()[0]}
 function setStudySpecies(id){state.selectedSpeciesId=id;state.studyIndex=0;state.studyFlipped=false}
+function pickStudyCheckImage(s){const imgs=s?allImages(s):[];if(!imgs.length)return null;return imgs[Math.floor(Math.random()*imgs.length)].id}
+function studyCheckImage(s){const imgs=s?allImages(s):[];const id=state.studyCheck?.imageId;return imgs.find(x=>x.id===id)||imgs[Math.floor(Math.random()*imgs.length)]||null}
+function openSpeciesStudyCheck(id){
+  state.selectedSpeciesId=id||state.selectedSpeciesId||speciesList()[0]?.id||null;
+  const s=selectedSpecies();
+  state.studyCheck={sections:{identity:true,field:true},index:0,passed:[],message:'',imageId:pickStudyCheckImage(s)};
+  state.screen='studyCheck';render();
+}
+function studyCheckQuestions(s){
+  const info=state.speciesInfo[s.id]||{};
+  const answers=info.studyAnswers||{};
+  return [
+    {num:1,id:'common',group:'identity',label:'Common name',answer:s.common||''},
+    {num:2,id:'scientific',group:'identity',label:'Scientific name',answer:s.scientific||''},
+    {num:3,id:'family',group:'identity',label:'Family name',answer:s.family||''},
+    {num:4,id:'naturalHistory',group:'identity',label:'Natural history',answer:answers.naturalHistory||''},
+    {num:5,id:'ageSex',group:'field',label:'Sex/age criteria',answer:answers.ageSex||''},
+    {num:6,id:'habitat',group:'field',label:'Habitat',answer:answers.habitat||''},
+    {num:7,id:'homeHabits',group:'field',label:'Home habits',answer:answers.homeHabits||''},
+    {num:8,id:'conservation',group:'field',label:'Conservation/Management',answer:answers.conservation||''}
+  ];
+}
+function studyAnswerKey(value){
+  return normalize(String(value||'')).replace(/[‐‑‒–—-]/g,'').replace(/[^a-z0-9]/g,'');
+}
+function studyAnswerMatches(given,expected){
+  const g=studyAnswerKey(given);
+  return String(expected||'').split('|').map(x=>studyAnswerKey(x)).filter(Boolean).includes(g);
+}
+function enabledStudyQuestions(s){
+  const q=studyCheckQuestions(s);const sec=state.studyCheck.sections||{identity:true,field:true};
+  return q.filter(x=>sec[x.group] && String(x.answer||'').trim());
+}
+function renderStudySpeciesCheck(app){
+  const s=selectedSpecies();
+  if(!s){setScreen('study');return}
+  const all=studyCheckQuestions(s), missing=all.filter(q=>!String(q.answer||'').trim());
+  const enabled=enabledStudyQuestions(s);
+  const idx=Math.min(state.studyCheck.index||0,Math.max(0,enabled.length-1)); state.studyCheck.index=idx;
+  const q=enabled[idx];
+  const passed=new Set(state.studyCheck.passed||[]);
+  const identityOn=state.studyCheck.sections?.identity!==false, fieldOn=state.studyCheck.sections?.field!==false;
+  if(!enabled.length){
+    app.innerHTML=shell('Study Species',`<div class="panel study-check-page"><div class="section-head"><div><p class="eyebrow">${esc(s.common)}</p><h2>Set up the Study Species answers first</h2><p class="muted">Use Edit Species to enter the expected answers for Natural history, Sex/age criteria, Habitat, Home habits, and Conservation/Management.</p></div><button onclick="openEditSpecies()">✏️ Edit Species</button></div><div class="study-check-toggles"><label class="toggle-row"><span><b>1–4 · Identification & Natural History</b><small>Common name, scientific name, family, natural history</small></span><input type="checkbox" checked disabled><i class="toggle-ui"></i></label><label class="toggle-row"><span><b>5–8 · Field Ecology & Management</b><small>Sex/age, habitat, home habits, conservation/management</small></span><input type="checkbox" checked disabled><i class="toggle-ui"></i></label></div><div class="study-check-missing"><b>Missing answers:</b> ${missing.map(x=>esc(x.label)).join(', ')||'None'}</div><div class="button-row"><button class="primary" onclick="openEditSpecies()">✏️ Enter Study Answers</button><button onclick="setScreen('study')">Back to Species</button></div></div>`);return;
+  }
+  const complete=passed.size>=enabled.length;
+  if(complete){
+    app.innerHTML=shell('Study Species',`<div class="panel study-check-page"><p class="eyebrow">${esc(s.common)}</p><h2>✓ Species Study Complete</h2><p>You correctly answered all ${enabled.length} selected question${enabled.length===1?'':'s'}.</p><div class="study-check-summary"><b>Completed:</b> ${enabled.map(x=>esc(x.label)).join(' · ')}</div><div class="button-row"><button class="primary" onclick="openSpeciesStudyCheck('${s.id}')">Study Again</button><button onclick="setScreen('study')">Back to Species</button></div></div>`);return;
+  }
+  const questionNo=idx+1, total=enabled.length, currentPassed=passed.has(q.id);
+  const studyImg=studyCheckImage(s);
+  const imageHtml=studyImg?`<div class=\"study-check-image-wrap\"><img class=\"study-check-image\" src=\"${esc(studyImg.data)}\" alt=\"${esc(s.common)} specimen image\"><small>Random specimen image from this species</small></div>`:`<div class=\"study-check-no-image\">No images have been added to this species yet.</div>`;
+  app.innerHTML=shell('Study Species',`<div class=\"panel study-check-page\"><div class=\"section-head\"><div><p class=\"eyebrow\">${esc(s.common)}</p><h2>Know this species before you continue</h2><p class=\"muted\">Your answer must match the stored answer. Capitalization and hyphens do not matter.</p></div><button onclick=\"setScreen('study')\">← Back</button></div><div class=\"study-check-toggles\"><label class=\"toggle-row\"><span><b>1–4 · Identification & Natural History</b><small>Common name · scientific name · family · natural history</small></span><input type=\"checkbox\" ${identityOn?'checked':''} onchange=\"toggleStudyCheckSection('identity',this.checked)\"><i class=\"toggle-ui\"></i></label><label class=\"toggle-row\"><span><b>5–8 · Field Ecology & Management</b><small>Sex/age criteria · habitat · home habits · conservation/management</small></span><input type=\"checkbox\" ${fieldOn?'checked':''} onchange=\"toggleStudyCheckSection('field',this.checked)\"><i class=\"toggle-ui\"></i></label></div><div class=\"study-check-progress\"><span>Question ${questionNo} of ${total}</span><div><i style=\"width:${Math.round(passed.size/total*100)}%\"></i></div><b>${passed.size}/${total} correct</b></div>${imageHtml}<div class=\"study-check-question\"><span class=\"study-check-number\">${q.num}</span><h3>${q.num}. ${esc(q.label)}</h3><input id=\"studyCheckAnswer\" class=\"study-check-input\" autocomplete=\"off\" spellcheck=\"false\" placeholder=\"Type your answer\" ${currentPassed?'disabled':''} onkeydown=\"if(event.key==='Enter'){event.preventDefault();checkStudySpeciesAnswer()}\">${state.studyCheck.message?`<div class=\"study-check-message ${state.studyCheck.message.startsWith('✓')?'good':'bad'}\">${esc(state.studyCheck.message)}</div>`:''}<div class=\"button-row\">${currentPassed?`<button class=\"primary\" onclick=\"advanceStudySpeciesCheck()\">${idx===total-1?'Finish':'Continue'} →</button>`:`<button class=\"primary\" onclick=\"checkStudySpeciesAnswer()\">Check Answer</button>`}</div></div></div>`);
+  if(!currentPassed)setTimeout(()=>$('studyCheckAnswer')?.focus(),20);
+}
+function toggleStudyCheckSection(group,on){
+  state.studyCheck.sections[group]=!!on;
+  const s=selectedSpecies(); const enabled=enabledStudyQuestions(s); const passed=new Set(state.studyCheck.passed||[]);
+  state.studyCheck.passed=[...passed].filter(id=>enabled.some(q=>q.id===id));
+  state.studyCheck.index=Math.min(state.studyCheck.index,Math.max(0,enabled.length-1)); state.studyCheck.message=''; render();
+}
+function checkStudySpeciesAnswer(){
+  const s=selectedSpecies(); const enabled=enabledStudyQuestions(s); const q=enabled[state.studyCheck.index]; if(!q)return;
+  const given=$('studyCheckAnswer')?.value||'';
+  if(studyAnswerMatches(given,q.answer)){
+    state.studyCheck.passed=[...new Set([...(state.studyCheck.passed||[]),q.id])];state.studyCheck.message='✓ Correct!';render();
+  }else{state.studyCheck.message='Not quite — try again.';render();}
+}
+function advanceStudySpeciesCheck(){
+  const s=selectedSpecies(); const enabled=enabledStudyQuestions(s); const passed=new Set(state.studyCheck.passed||[]);
+  if(state.studyCheck.index<enabled.length-1){state.studyCheck.index++;state.studyCheck.message='';state.studyCheck.imageId=pickStudyCheckImage(s);render();}
+  else if(passed.size>=enabled.length)render();
+}
 function cardMode(id){
   const cards=cardsFor(id); return cards.length?cards[state.studyIndex%cards.length]:null
 }
@@ -188,6 +261,7 @@ function render(){
   if(state.screen==='quiz') return renderQuiz(app);
   if(state.screen==='results') return renderResults(app);
   if(state.screen==='study') return renderStudy(app);
+  if(state.screen==='studyCheck') return renderStudySpeciesCheck(app);
   if(state.screen==='manage') return renderManage(app);
   if(state.screen==='cardEditor') return renderCardEditor(app);
   if(state.screen==='customize') return renderCustomizer(app);
@@ -359,7 +433,7 @@ function renderStudy(app){
     <div class="study-layout">
       <aside class="species-sidebar"><input class="search" id="speciesSearch" placeholder="Search species..." oninput="filterSpeciesList()"><div id="speciesList">${list}</div></aside>
       <section class="study-main">
-        <div class="species-heading"><div><h2>${esc(s.common)} ${state.favorites.includes(s.id)?'⭐':''}</h2><p>${sciHtml(s.scientific)} · ${s.family?esc(s.family):'Family not specified'}</p><div class="mastery-ring" style="--p:${masteryPercent(s.id)}%"><span>${masteryPercent(s.id)}%</span></div></div><div class="button-row"><button onclick="openStudyNewCard()">+ Add Card</button><button onclick="toggleFavorite('${s.id}')">${state.favorites.includes(s.id)?'★ Unfavorite':'☆ Favorite'}</button><button onclick="editSpeciesInfo()">Notes / Clues</button><button onclick="openManageLibrary()">Manage Images</button><button onclick="setScreen('addSpecies')">+ Add Species</button></div></div>
+        <div class="species-heading"><div><h2>${esc(s.common)} ${state.favorites.includes(s.id)?'⭐':''}</h2><p>${sciHtml(s.scientific)} · ${s.family?esc(s.family):'Family not specified'}</p><div class="mastery-ring" style="--p:${masteryPercent(s.id)}%"><span>${masteryPercent(s.id)}%</span></div></div><div class="button-row"><button class="primary" onclick="openSpeciesStudyCheck('${s.id}')">📝 Study Species</button><button onclick="openStudyNewCard()">+ Add Card</button><button onclick="toggleFavorite('${s.id}')">${state.favorites.includes(s.id)?'★ Unfavorite':'☆ Favorite'}</button><button onclick="editSpeciesInfo()">Notes / Clues</button><button onclick="openManageLibrary()">Manage Images</button><button onclick="setScreen('addSpecies')">+ Add Species</button></div></div>
         ${featureOn('galleries')?`<div class="species-gallery panel"><div class="gallery-head"><h3>🖼️ Specimen Gallery</h3><button onclick="openManageLibrary()">Manage Images</button></div><div class="vault-gallery">${allImages(s).slice(0,6).map(i=>`<img src="${esc(i.data)}" alt="${esc(s.common)}" onclick="openLightbox('${esc(i.data)}')">`).join('')}</div>${allImages(s).length?`<small>${allImages(s).length} image${allImages(s).length===1?'':'s'} in this species collection.</small>`:'<p class="muted">Add specimen images in Images.</p>'}</div>`:''}
         <div class="notes-editor panel">
           <div class="section-head"><div><h3>📝 My Species Notes</h3><p class="muted">Write normal notes freely. Only blocks inserted with “🃏 Insert Flashcard” will become flashcards.</p></div><span id="notesSaveStatus" class="muted">${esc(state.noteFlashcardStatus||'')}</span></div>
@@ -573,11 +647,12 @@ function updateCardPreview(){
 }
 function openEditSpecies(){
   const s=selectedSpecies(); if(!s)return;
-  const info=state.speciesInfo[s.id]||{};
+  const info=state.speciesInfo[s.id]||{}, a=info.studyAnswers||{};
   const modal=document.createElement('div'); modal.className='modal-backdrop'; modal.id='editSpeciesModal';
-  modal.innerHTML=`<div class="modal-card species-edit-modal"><div class="section-head"><div><h2>✏️ Edit Species</h2><p class="muted">Fix the common name, scientific name, family, notes, or identification clues. Your changes are saved in this browser.</p></div><button type="button" onclick="closeEditSpecies()">✕</button></div><div class="form-grid"><label>Common name<input id="editSpeciesCommon" value="${esc(s.common||'')}"></label><label>Scientific name<input id="editSpeciesScientific" value="${esc(s.scientific||'')}"></label><label>Family <span class="muted">(optional)</span><input id="editSpeciesFamily" value="${esc(s.family||'')}"></label></div><label>My species notes<textarea id="editSpeciesNotes" rows="7">${esc(info.notes||'')}</textarea></label><label>My identification clues<textarea id="editSpeciesClues" rows="7">${esc(info.clues||'')}</textarea></label><div id="editSpeciesError" class="editor-error"></div><div class="button-row"><button type="button" class="primary" onclick="saveEditedSpecies()">💾 Save Changes</button><button type="button" onclick="closeEditSpecies()">Cancel</button></div></div>`;
+  modal.innerHTML=`<div class="modal-card species-edit-modal"><div class="section-head"><div><h2>✏️ Edit Species</h2><p class="muted">Fix species information and set the answers used by <b>Study Species</b>. For fields 4–8, you may enter multiple accepted answers separated by <b>|</b>.</p></div><button type="button" onclick="closeEditSpecies()">✕</button></div><div class="form-grid"><label>Common name<input id="editSpeciesCommon" value="${esc(s.common||'')}"></label><label>Scientific name<input id="editSpeciesScientific" value="${esc(s.scientific||'')}"></label><label>Family name <span class="muted">(optional)</span><input id="editSpeciesFamily" value="${esc(s.family||'')}"></label></div><h3>Study Species answer key</h3><p class="muted">Questions 1–3 use the species names above. Questions 4–8 use the answers below. Capitalization and hyphens are ignored when checking answers.</p><label>4. Natural history<textarea id="editStudyNaturalHistory" rows="5" placeholder="Enter the expected answer. Use | for alternatives.">${esc(a.naturalHistory||'')}</textarea></label><label>5. Sex/age criteria<textarea id="editStudyAgeSex" rows="4" placeholder="Enter the expected answer. Use | for alternatives.">${esc(a.ageSex||'')}</textarea></label><label>6. Habitat<textarea id="editStudyHabitat" rows="4" placeholder="Enter the expected answer. Use | for alternatives.">${esc(a.habitat||'')}</textarea></label><label>7. Home habits<textarea id="editStudyHomeHabits" rows="4" placeholder="Enter the expected answer. Use | for alternatives.">${esc(a.homeHabits||'')}</textarea></label><label>8. Conservation/Management<textarea id="editStudyConservation" rows="4" placeholder="Enter the expected answer. Use | for alternatives.">${esc(a.conservation||'')}</textarea></label><h3>Additional notes</h3><label>My species notes<textarea id="editSpeciesNotes" rows="6">${esc(info.notes||'')}</textarea></label><label>My identification clues<textarea id="editSpeciesClues" rows="6">${esc(info.clues||'')}</textarea></label><div id="editSpeciesError" class="editor-error"></div><div class="button-row"><button type="button" class="primary" onclick="saveEditedSpecies()">💾 Save Changes</button><button type="button" onclick="closeEditSpecies()">Cancel</button></div></div>`;
   document.body.appendChild(modal);
 }
+
 function closeEditSpecies(){document.getElementById('editSpeciesModal')?.remove()}
 async function saveEditedSpecies(){
   const s=selectedSpecies(); if(!s)return;
@@ -588,7 +663,7 @@ async function saveEditedSpecies(){
   }else{
     const edits=loadSpeciesEdits(); edits[s.id]={common,scientific,family}; saveSpeciesEdits(edits);
   }
-  await dbPut(INFO_STORE,{speciesId:s.id,notes:$('editSpeciesNotes')?.value||'',clues:$('editSpeciesClues')?.value||''});
+  await dbPut(INFO_STORE,{speciesId:s.id,notes:$('editSpeciesNotes')?.value||'',clues:$('editSpeciesClues')?.value||'',studyAnswers:{naturalHistory:$('editStudyNaturalHistory')?.value||'',ageSex:$('editStudyAgeSex')?.value||'',habitat:$('editStudyHabitat')?.value||'',homeHabits:$('editStudyHomeHabits')?.value||'',conservation:$('editStudyConservation')?.value||''}});
   await refreshStudyData(); state.selectedSpeciesId=s.id; closeEditSpecies(); render();
 }
 
@@ -602,7 +677,7 @@ function renderManage(app){
     const groups={};
     species.slice().sort((a,b)=>(a.family||'Unclassified').localeCompare(b.family||'Unclassified')||a.common.localeCompare(b.common)).forEach(x=>{const family=x.family?.trim()||'Unclassified';(groups[family]??=[]).push(x)});
     const families=Object.keys(groups).sort((a,b)=>a.localeCompare(b));
-    const sections=families.map(f=>`<section class="family-library-section"><div class="family-library-heading"><h3>${esc(f)}</h3><span>${groups[f].length} species</span></div><div class="species-card-grid">${groups[f].map(x=>{const img=allImages(x)[0];return `<div class="species-library-card"><button type="button" class="species-library-card-main" onclick="setStudySpecies('${x.id}');render()"><div class="species-library-thumb">${img?`<img src="${esc(img.data)}" alt="">`:'<span>NO IMAGE</span>'}</div><div class="species-library-info"><strong>${esc(x.common)}</strong><em>${sciHtml(x.scientific)}</em></div></button><button type="button" class="species-library-edit" onclick="state.selectedSpeciesId='${x.id}';openEditSpecies()">✏️ Edit Species</button></div>`}).join('')}</div></section>`).join('');
+    const sections=families.map(f=>`<section class="family-library-section"><div class="family-library-heading"><h3>${esc(f)}</h3><span>${groups[f].length} species</span></div><div class="species-card-grid">${groups[f].map(x=>{const img=allImages(x)[0];return `<div class="species-library-card"><button type="button" class="species-library-card-main" onclick="setStudySpecies('${x.id}');render()"><div class="species-library-thumb">${img?`<img src="${esc(img.data)}" alt="">`:'<span>NO IMAGE</span>'}</div><div class="species-library-info"><strong>${esc(x.common)}</strong><em>${sciHtml(x.scientific)}</em></div></button><div class="species-library-actions"><button type="button" onclick="openSpeciesStudyCheck('${x.id}')">📝 Study Species</button><button type="button" class="species-library-edit" onclick="state.selectedSpeciesId='${x.id}';openEditSpecies()">✏️ Edit Species</button></div></div>`}).join('')}</div></section>`).join('');
     app.innerHTML=shell('Manage Species & Images',`<div class="species-library-landing"><div class="library-hero panel"><div><p class="eyebrow">${esc(subjectTitle())}</p><h2>Species Library</h2><p class="muted">Choose a species to view or edit its images and information.</p></div><button class="primary" onclick="setScreen('addSpecies')">+ Add Species</button></div>${imageCategoryManagerHtml()}<div class="library-toolbar"><input class="search" id="speciesLibrarySearch" placeholder="Search common or scientific name..." oninput="filterSpeciesLibrary()"><span class="muted">${species.length} species · ${families.length} families</span></div><div id="speciesLibraryGroups">${sections}</div></div>`);return;
   }
   const s=selectedSpecies(),imgs=allImages(s);
@@ -611,7 +686,7 @@ function renderManage(app){
       <div class="detail-back-row"><button onclick="state.selectedSpeciesId=null;render()">← Back to Species Library</button></div>
       ${imageCategoryManagerHtml()}
       <section class="study-main">
-        <div class="species-heading"><div><h2>${esc(s.common)}</h2><p>${sciHtml(s.scientific)} · ${esc(s.family||'Unclassified')}</p></div><div class="button-row"><button type="button" onclick="openEditSpecies()">✏️ Edit species</button><button onclick="setScreen('study')">Study this species</button></div></div>
+        <div class="species-heading"><div><h2>${esc(s.common)}</h2><p>${sciHtml(s.scientific)} · ${esc(s.family||'Unclassified')}</p></div><div class="button-row"><button type="button" onclick="openEditSpecies()">✏️ Edit species</button><button onclick="openSpeciesStudyCheck('${s.id}')">📝 Study this species</button></div></div>
         <div class="paste-box" id="pasteBox" tabindex="0"><strong>📋 Paste an image here</strong><span>Click this area, then press <b>Ctrl + V</b>. The image is shown for confirmation before it is saved.</span><button type="button" class="primary" onclick="preparePasteImage()">📋 Prepare for Ctrl + V</button></div>
         <div class="upload-row"><label class="file-button">📁 Add multiple images<input id="imageFiles" type="file" accept="image/*" multiple onchange="handleFiles(this.files);resetImageFileInput(this)"></label><button type="button" onclick="importGooglePhotosToSpecies()">📷 Add from Google Photos</button><select id="newImageType">${imageTypeOptions()}</select></div><p class="muted batch-upload-help">You can select multiple image files at once. Each image will be added to this species and can be edited or masked individually.</p><div id="batchUploadStatus" class="batch-upload-status" aria-live="polite"></div><p class="muted google-photos-help"><b>Google Photos privacy:</b> Search for the animal/species you want, then select 1–2 images. Only photos you select are imported into this Vault.</p>
         <div class="image-grid">${imgs.map(i=>`<div class="image-admin"><img src="${esc(i.data)}" onclick="openLightbox('${esc(i.data)}')"><div class="image-admin-meta"><span>${i.custom?'Your image':'Course image'}${i.edited?' · Edited':''}</span><select onchange="setImageTag('${esc(i.id)}',this.value)">${imageTypeOptions((i.viewTypes||[])[0]||'mixed')}</select><button type="button" onclick="openImageEditor('${esc(i.id)}')">✏️ Edit image</button><button type="button" onclick="openImageMaskEditor('${esc(i.id)}')">${i.quizMask?'Edit quiz text area':'Set quiz text area'}</button>${i.edited?`<button type="button" onclick="resetImageEdit('${esc(i.id)}')">Reset image edit</button>`:''}${i.quizMask?`<button type="button" onclick="clearImageMask('${esc(i.id)}')">Clear quiz mask</button>`:''}${i.custom?`<button class="danger" onclick="removeCustomImage('${esc(i.id)}')">Delete</button>`:''}</div></div>`).join('')}</div>
@@ -901,7 +976,7 @@ function enableAllFeatures(){saveFeatures(featureDefaults());render()}
 function disableOptionalFeatures(){const f=featureDefaults();['badges','streak','daily','surprise','galleries','mystery','trouble','smartReview','xp','themes','journal','recent','favorites','stats','history','clues'].forEach(k=>f[k]=false);saveFeatures(f);render()}
 async function handleNewSpeciesFiles(files){for(const file of [...(files||[])]){if(!file.type.startsWith('image/'))continue;const dataUrl=await new Promise((res,rej)=>{const r=new FileReader();r.onload=()=>res(r.result);r.onerror=rej;r.readAsDataURL(file)});state.pendingSpeciesImages.push({name:file.name||'Species image',dataUrl,editedDataUrl:'',viewTypes:['mixed'],quizMask:null,createdAt:Date.now()})}renderAddSpecies($('app'))}
 function removePendingSpeciesImage(index){state.pendingSpeciesImages.splice(index,1);renderAddSpecies($('app'))}
-async function addSpeciesFromForm(){const common=$('newCommon').value.trim(),scientific=$('newScientific').value.trim(),family=$('newFamily').value.trim();if(!common||!scientific){$('speciesError').textContent='Common name and scientific name are required.';return}const id='custom-species-'+Date.now()+'-'+Math.random().toString(36).slice(2);const sp={id,common,scientific,family,images:[],custom:true,subject:state.subject,createdAt:Date.now()};await dbPut(SPECIES_STORE,sp);await dbPut(INFO_STORE,{speciesId:id,notes:$('newNotes').value||'',clues:$('newClues').value||''});for(const image of state.pendingSpeciesImages)await putCustomImage({id:'custom-'+Date.now()+'-'+Math.random().toString(36).slice(2),speciesId:id,name:image.name,dataUrl:image.dataUrl,editedDataUrl:image.editedDataUrl||'',viewTypes:image.viewTypes||['mixed'],quizMask:image.quizMask||null,createdAt:image.createdAt||Date.now()});state.pendingSpeciesImages=[];state.pendingSpeciesForm={common:'',scientific:'',family:'',notes:'',clues:''};await refreshStudyData();state.selectedSpeciesId=id;setScreen('manage')}
+async function addSpeciesFromForm(){const common=$('newCommon').value.trim(),scientific=$('newScientific').value.trim(),family=$('newFamily').value.trim();if(!common||!scientific){$('speciesError').textContent='Common name and scientific name are required.';return}const id='custom-species-'+Date.now()+'-'+Math.random().toString(36).slice(2);const sp={id,common,scientific,family,images:[],custom:true,subject:state.subject,createdAt:Date.now()};await dbPut(SPECIES_STORE,sp);await dbPut(INFO_STORE,{speciesId:id,notes:$('newNotes').value||'',clues:$('newClues').value||'',studyAnswers:{naturalHistory:'',ageSex:'',habitat:'',homeHabits:'',conservation:''}});for(const image of state.pendingSpeciesImages)await putCustomImage({id:'custom-'+Date.now()+'-'+Math.random().toString(36).slice(2),speciesId:id,name:image.name,dataUrl:image.dataUrl,editedDataUrl:image.editedDataUrl||'',viewTypes:image.viewTypes||['mixed'],quizMask:image.quizMask||null,createdAt:image.createdAt||Date.now()});state.pendingSpeciesImages=[];state.pendingSpeciesForm={common:'',scientific:'',family:'',notes:'',clues:''};await refreshStudyData();state.selectedSpeciesId=id;setScreen('manage')}
 function captureAddSpeciesForm(){if(!$('newCommon'))return;state.pendingSpeciesForm={common:$('newCommon').value||'',scientific:$('newScientific').value||'',family:$('newFamily').value||'',notes:$('newNotes').value||'',clues:$('newClues').value||''}}
 function renderAddSpecies(app){captureAddSpeciesForm();const f=state.pendingSpeciesForm||{};const previews=state.pendingSpeciesImages.map((x,i)=>`<div class="pending-image"><img src="${esc(x.editedDataUrl||x.dataUrl)}"><span class="pending-image-status">${x.editedDataUrl?'Edited copy':'Original'}</span><button type="button" onclick="openPendingSpeciesImageEditor(${i})">✏️ Edit image</button><button type="button" onclick="openPendingSpeciesMaskEditor(${i})">${x.quizMask?'Edit quiz text area':'Set quiz text area'}</button><button type="button" class="danger" onclick="removePendingSpeciesImage(${i})">Remove</button></div>`).join('');app.innerHTML=shell('Add Species',`<div class="panel add-species-form"><h2>Add a new ${currentSubject().name.toLowerCase()} species to ${subjectTitle()}</h2><p class="muted">Add the species information and its images together. You can edit or mask every image before saving the species.</p><div class="form-grid"><label>Common name<input id="newCommon" value="${esc(f.common)}" placeholder="Common name"></label><label>Scientific name<input id="newScientific" value="${esc(f.scientific)}" placeholder="Genus species"></label><label>Family <span class="muted">(optional)</span><input id="newFamily" value="${esc(f.family)}" placeholder="e.g., Felidae"></label></div><label>My species notes<textarea id="newNotes" rows="5" placeholder="Anything you want to remember...">${esc(f.notes)}</textarea></label><label>My identification clues<textarea id="newClues" rows="5" placeholder="Diagnostic features you want to remember...">${esc(f.clues)}</textarea></label><div class="upload-row"><label class="file-button">Add species images<input type="file" accept="image/*" multiple onchange="handleNewSpeciesFiles(this.files)"></label><span class="muted">Select several images at once.</span></div><div class="pending-images">${previews}</div><div class="cloud-import-note"><b>Google Photos:</b> After adding the species, use <b>Import from Google Photos</b> on its Images page.</div><div id="speciesError" class="editor-error"></div><div class="button-row"><button class="primary" onclick="addSpeciesFromForm()">Add to ${subjectTitle()}</button><button onclick="state.pendingSpeciesImages=[];state.pendingSpeciesForm={common:'',scientific:'',family:'',notes:'',clues:''};setScreen('study')">Cancel</button></div></div>`)}
 function renderProgress(app){
@@ -933,7 +1008,7 @@ async function importBackup(file){
     for(const x of (b.homeImages||[]))await dbPut(HOMEIMG_STORE,x);
     for(const x of (b.customSpecies||[]))await dbPut(SPECIES_STORE,x);
     if(b.homeConfig)localStorage.setItem(subjectKey(HOME_KEY),JSON.stringify(b.homeConfig));
-    for(const [id,obj] of Object.entries(b.speciesInfo||{}))await dbPut(INFO_STORE,{speciesId:id,notes:obj.notes||''});
+    for(const [id,obj] of Object.entries(b.speciesInfo||{}))await dbPut(INFO_STORE,{...obj,speciesId:id});
     if(b.tagOverrides)localStorage.setItem(subjectKey(TAGS_KEY),JSON.stringify(b.tagOverrides));if(Array.isArray(b.imageTypes)&&b.imageTypes.length)localStorage.setItem(subjectKey(IMAGE_TYPES_KEY),JSON.stringify(b.imageTypes));
     if(b.quizMaskOverrides)localStorage.setItem(subjectKey(MASKS_KEY),JSON.stringify(b.quizMaskOverrides));
     if(b.imageEditOverrides)localStorage.setItem(subjectKey(EDITS_KEY),JSON.stringify(b.imageEditOverrides));
