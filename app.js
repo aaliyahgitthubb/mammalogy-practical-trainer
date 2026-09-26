@@ -177,8 +177,23 @@ function speciesProgress(id){return loadProgress()[id]||{seen:0,correct:0,wrong:
 function cardsFor(id){return state.cards.filter(c=>c.speciesId===id).sort((a,b)=>(a.order??0)-(b.order??0))}
 function selectedSpecies(){return speciesById(state.selectedSpeciesId)||speciesList()[0]}
 function setStudySpecies(id){state.selectedSpeciesId=id;state.studyIndex=0;state.studyFlipped=false}
-function pickStudyCheckImage(s){const imgs=s?allImages(s):[];if(!imgs.length)return null;return imgs[Math.floor(Math.random()*imgs.length)].id}
-function studyCheckImage(s){const imgs=s?allImages(s):[];const id=state.studyCheck?.imageId;return imgs.find(x=>x.id===id)||imgs[Math.floor(Math.random()*imgs.length)]||null}
+function resolveEditedImage(im){
+  if(!im)return null;
+  if(im.custom){
+    const live=state.customImages.find(x=>x.id===im.id);
+    if(live)return {...im,data:live.editedDataUrl||live.dataUrl,originalData:live.dataUrl,edited:!!live.editedDataUrl};
+    return {...im,data:im.editedDataUrl||im.dataUrl,originalData:im.dataUrl,edited:!!im.editedDataUrl};
+  }
+  const edit=state.imageEdits?.[im.id];
+  return edit?.dataUrl?{...im,data:edit.dataUrl,edited:true}:im;
+}
+function pickStudyCheckImage(s){const imgs=s?allImages(s).map(resolveEditedImage).filter(Boolean):[];if(!imgs.length)return null;return imgs[Math.floor(Math.random()*imgs.length)].id}
+function studyCheckImage(s){
+  const imgs=s?allImages(s).map(resolveEditedImage).filter(Boolean):[];
+  if(!imgs.length)return null;
+  const id=state.studyCheck?.imageId;
+  return imgs.find(x=>x.id===id)||imgs[Math.floor(Math.random()*imgs.length)];
+}
 function openSpeciesStudyCheck(id){
   state.selectedSpeciesId=id||state.selectedSpeciesId||speciesList()[0]?.id||null;
   const s=selectedSpecies();

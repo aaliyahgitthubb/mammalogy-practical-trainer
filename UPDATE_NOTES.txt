@@ -8,3 +8,5 @@ Includes the 2.1.1 Study Species system plus:
 - Retains the 1–4 and 5–8 toggles, answer checking, and Edit Species answer key.
 
 Keep existing data.js and embedded_images.js.
+
+2.1.3 — Study Species now explicitly resolves saved edited images for both built-in and uploaded specimen images before display. Cache-busted app version updated to 2.1.3.
