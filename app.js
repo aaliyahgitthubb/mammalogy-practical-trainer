@@ -596,6 +596,22 @@ function renderManage(app){
   `);
   setTimeout(()=>{$('pasteBox')?.focus();$('pasteBox')?.addEventListener('paste',handlePaste)},0)
 }
+let pasteImageHandlerInstalled=false;
+function installPasteImageHandler(){
+  if(pasteImageHandlerInstalled)return;
+  pasteImageHandlerInstalled=true;
+  document.addEventListener('paste',async e=>{
+    if(state.screen!=='manage'||!selectedSpecies())return;
+    const target=e.target;
+    if(target && (target.tagName==='INPUT'||target.tagName==='TEXTAREA'||target.isContentEditable))return;
+    const item=[...(e.clipboardData?.items||[])].find(x=>x.type.startsWith('image/'));
+    if(!item)return;
+    e.preventDefault();
+    const file=item.getAsFile();
+    if(file)await saveImageFile(file,currentImageType());
+  });
+}
+installPasteImageHandler();
 function filterSpeciesLibrary(){
   const q=($('speciesLibrarySearch')?.value||'').trim().toLowerCase();
   document.querySelectorAll('.family-library-section').forEach(section=>{

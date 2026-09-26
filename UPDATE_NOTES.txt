@@ -6,3 +6,6 @@ v1.9.6 — Added document-style species Notes with inline flashcard creation.
 - Normal notes remain normal notes.
 - No AI or external API is required.
 - Existing specimen images and flashcard image attachment functionality retained.
+
+
+v1.9.7 — Fixed Paste Image so clipboard images are detected at the page level instead of requiring the paste box to retain focus. Normal text fields are excluded from the image paste handler.
