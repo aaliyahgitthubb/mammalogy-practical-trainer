@@ -1,9 +1,11 @@
-v2.0.0 — Reliable Image Pasting + Multi-Image Upload
+The Mammal Vault v2.0.2 — verified image upload rebuild
 
-This update keeps the existing Mammal Vault features and adds:
-- More reliable image pasting using Ctrl+V / the paste area, with the existing clipboard button retained as a best-effort option.
-- A clearly labeled “Add multiple images” upload control.
-- Multiple image files can be selected and added to the same species in one batch.
-- Batch upload progress/status so you can see how many images have been added.
-- Each uploaded image remains individually editable and can have its own quiz text mask.
-- index.html, app.js, sw.js, and version.json are synchronized to v2.0.0 to prevent stale-code loading.
+- Rebuilt from the current GitHub repository structure rather than an incomplete ZIP.
+- Multiple-image file selection is preserved and processed as a single batch.
+- The gallery refreshes only after the full batch finishes saving.
+- Ctrl+V paste uses the browser paste event as the primary cross-browser path.
+- Paste-from-Clipboard uses the Clipboard API when available, then falls back to the Ctrl+V workflow instead of falsely treating clipboard restrictions as an app failure.
+- Existing per-image editing, quiz masks, image categories, Google Photos flow, notes, and flashcard features are preserved.
+- index.html, app.js, sw.js, and version.json are synchronized to v2.0.2.
+
+IMPORTANT: This is a SAFE REPLACEMENT UPDATE. Do not delete data.js or embedded_images.js from your existing GitHub repository; they contain the course species/image data and are intentionally not replaced by this update.

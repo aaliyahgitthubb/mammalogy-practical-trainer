@@ -589,7 +589,7 @@ function renderManage(app){
       <section class="study-main">
         <div class="species-heading"><div><h2>${esc(s.common)}</h2><p>${sciHtml(s.scientific)} · ${esc(s.family||'Unclassified')}</p></div><div class="button-row"><button onclick="setScreen('study')">Study this species</button></div></div>
         <div class="paste-box" id="pasteBox" tabindex="0"><strong>📋 Paste an image here</strong><span>Copy an image, then use the button below or click here and press <b>Ctrl + V</b>.</span><button type="button" class="primary" onclick="pasteImageFromClipboard()">📋 Paste from Clipboard</button></div>
-        <div class="upload-row"><label class="file-button">📁 Add multiple images<input id="imageFiles" type="file" accept="image/*" multiple onchange="handleFiles(this.files)"></label><button type="button" onclick="importGooglePhotosToSpecies()">📷 Add from Google Photos</button><select id="newImageType">${imageTypeOptions()}</select></div><p class="muted batch-upload-help">You can select multiple image files at once. Each image will be added to this species and can be edited or masked individually.</p><div id="batchUploadStatus" class="batch-upload-status" aria-live="polite"></div><p class="muted google-photos-help"><b>Google Photos privacy:</b> Search for the animal/species you want, then select 1–2 images. Only photos you select are imported into this Vault.</p>
+        <div class="upload-row"><label class="file-button">📁 Add multiple images<input id="imageFiles" type="file" accept="image/*" multiple onchange="handleFiles(this.files);resetImageFileInput(this)"></label><button type="button" onclick="importGooglePhotosToSpecies()">📷 Add from Google Photos</button><select id="newImageType">${imageTypeOptions()}</select></div><p class="muted batch-upload-help">You can select multiple image files at once. Each image will be added to this species and can be edited or masked individually.</p><div id="batchUploadStatus" class="batch-upload-status" aria-live="polite"></div><p class="muted google-photos-help"><b>Google Photos privacy:</b> Search for the animal/species you want, then select 1–2 images. Only photos you select are imported into this Vault.</p>
         <div class="image-grid">${imgs.map(i=>`<div class="image-admin"><img src="${esc(i.data)}" onclick="openLightbox('${esc(i.data)}')"><div class="image-admin-meta"><span>${i.custom?'Your image':'Course image'}${i.edited?' · Edited':''}</span><select onchange="setImageTag('${esc(i.id)}',this.value)">${imageTypeOptions((i.viewTypes||[])[0]||'mixed')}</select><button type="button" onclick="openImageEditor('${esc(i.id)}')">✏️ Edit image</button><button type="button" onclick="openImageMaskEditor('${esc(i.id)}')">${i.quizMask?'Edit quiz text area':'Set quiz text area'}</button>${i.edited?`<button type="button" onclick="resetImageEdit('${esc(i.id)}')">Reset image edit</button>`:''}${i.quizMask?`<button type="button" onclick="clearImageMask('${esc(i.id)}')">Clear quiz mask</button>`:''}${i.custom?`<button class="danger" onclick="removeCustomImage('${esc(i.id)}')">Delete</button>`:''}</div></div>`).join('')}</div>
       </section>
     </div>
@@ -630,26 +630,29 @@ async function handlePaste(e){
 
 async function pasteImageFromClipboard(){
   if(state.screen!=='manage'||!selectedSpecies()){alert('Select a species first.');return}
-  if(!navigator.clipboard?.read){
-    alert('Your browser does not provide Clipboard image access here. Try clicking the paste area and pressing Ctrl + V.');
-    return;
-  }
-  try{
-    const items=await navigator.clipboard.read();
-    for(const item of items){
-      const type=item.types.find(t=>String(t).startsWith('image/'));
-      if(!type)continue;
-      const blob=await item.getType(type);
-      if(blob&&blob.type.startsWith('image/')){
-        const file=new File([blob],`Pasted image.${type.split('/')[1]||'png'}`,{type:blob.type});
-        await saveImageFile(file,currentImageType());
-        return;
+  if(navigator.clipboard?.read){
+    try{
+      const items=await navigator.clipboard.read();
+      for(const item of items){
+        const type=item.types.find(t=>String(t).startsWith('image/'));
+        if(!type)continue;
+        const blob=await item.getType(type);
+        if(blob&&blob.type.startsWith('image/')){
+          const file=new File([blob],`Pasted image.${type.split('/')[1]||'png'}`,{type:blob.type});
+          await saveImageFile(file,currentImageType());
+          return;
+        }
       }
+    }catch(err){
+      console.warn('Clipboard image read unavailable; using paste-event fallback.',err);
     }
-    alert('No image was found in the clipboard. Copy an image first, then try again.');
-  }catch(err){
-    console.error('Clipboard image paste failed:',err);
-    alert('The browser blocked clipboard access. Try clicking the paste area and pressing Ctrl + V, or allow clipboard access for this site.');
+  }
+  const box=$('pasteBox');
+  if(box){
+    box.focus();
+    alert('Clipboard image access is restricted in this browser. Click OK, then press Ctrl + V while the Paste an image here area is focused.');
+  }else{
+    alert('Clipboard image access is restricted in this browser. Use Ctrl + V on the Paste an image area.');
   }
 }
 async function handleFiles(files){
@@ -660,12 +663,16 @@ async function handleFiles(files){
   const type=currentImageType();
   let added=0;
   for(const f of list){
-    try{await saveImageFile(f,type);added++;}
+    try{await saveImageFile(f,type,false);added++;}
     catch(err){console.error('Image upload failed:',f?.name,err)}
     if(status)status.textContent=`Added ${added} of ${list.length} image${list.length===1?'':'s'}…`;
   }
-  if(status)status.textContent=`✓ Added ${added} of ${list.length} image${list.length===1?'':'s'}.`;
+  await refreshStudyData();
+  render();
+  const finalStatus=$('batchUploadStatus');
+  if(finalStatus)finalStatus.textContent=`✓ Added ${added} of ${list.length} image${list.length===1?'':'s'}.`;
 }
+function resetImageFileInput(input){if(input)input.value=''}
 function imageEditorDefault(){return {rotation:0,flipX:false,flipY:false,brightness:100,contrast:100,saturation:100,crop:{x:0,y:0,w:100,h:100}}}
 function openImageEditor(id){
   const im=imgsForSelectedSpecies().find(x=>x.id===id);if(!im)return;
@@ -735,12 +742,15 @@ function openPendingSpeciesMaskEditor(index){const x=state.pendingSpeciesImages[
 async function openImageMaskEditor(id){const im=state.customImages.find(x=>x.id===id);const course=imgsForSelectedSpecies().find(x=>x.id===id);const target=im||course;if(!target)return;openMaskEditor(target.dataUrl||target.data,target.quizMask,(mask)=>{if(target.custom){target.quizMask=mask;dbPut(IMG_STORE,target).then(refreshStudyData).then(render)}else{state.maskOverrides[id]=mask;saveMasks();render()}},'Set quiz text area for this image')}
 function imgsForSelectedSpecies(){const s=selectedSpecies();return s?allImages(s):[]}
 async function clearImageMask(id){const im=state.customImages.find(x=>x.id===id);if(im){im.quizMask=null;await dbPut(IMG_STORE,im)}else{delete state.maskOverrides[id];saveMasks()}await refreshStudyData();render()}
-async function saveImageFile(file,viewType){
-  if(!file.type.startsWith('image/'))return;
+async function saveImageFile(file,viewType,shouldRender=true){
+  if(!file?.type?.startsWith('image/'))return;
+  const species=selectedSpecies();
+  if(!species)throw new Error('No species selected');
   const dataUrl=await new Promise((res,rej)=>{const r=new FileReader();r.onload=()=>res(r.result);r.onerror=rej;r.readAsDataURL(file)});
-  await putCustomImage({id:'custom-'+Date.now()+'-'+Math.random().toString(36).slice(2),speciesId:selectedSpecies().id,name:file.name||'Pasted image',dataUrl,viewTypes:[viewType,'mixed'].filter((x,i,a)=>a.indexOf(x)===i),quizMask:null,createdAt:Date.now()});
-  await refreshStudyData();render();
+  await putCustomImage({id:'custom-'+Date.now()+'-'+Math.random().toString(36).slice(2),speciesId:species.id,name:file.name||'Pasted image',dataUrl,viewTypes:[viewType,'mixed'].filter((x,i,a)=>a.indexOf(x)===i),quizMask:null,createdAt:Date.now()});
+  if(shouldRender){await refreshStudyData();render()}
 }
+
 async function removeCustomImage(id){if(!confirm('Delete this image from your trainer?'))return;await deleteCustomImage(id);await refreshStudyData();render()}
 async function setImageTag(id,type){
   if(id.startsWith('custom:'))return;
