@@ -23,7 +23,9 @@ const state={
   customImages:[], customSpecies:[], pendingSpeciesImages:[], tagOverrides:{}, maskOverrides:{}, imageEdits:{}, cards:[], speciesInfo:{}, homeImages:[], homeConfig:null,
   maskEditor:null, cardBankQuery:'', cardBankSpecies:'', pendingSpeciesForm:{common:'',scientific:'',family:'',notes:'',clues:''}, selectedSpeciesId:null, studyMode:'browse', studyIndex:0, studyFlipped:false, studyTagFilter:'', noteFlashcardStatus:'', sessionPlan:null, mystery:false, features:null, favorites:[]
 };
-function speciesList(){const source=(state.subject==='mammalogy'&&typeof SOURCE_SPECIES!=='undefined'&&Array.isArray(SOURCE_SPECIES))?SOURCE_SPECIES:[];return [...source,...state.customSpecies]}
+function loadSpeciesEdits(){try{return JSON.parse(localStorage.getItem(subjectKey('mammalogy-species-edits'))||'{}')}catch{return {}}}
+function saveSpeciesEdits(v){localStorage.setItem(subjectKey('mammalogy-species-edits'),JSON.stringify(v||{}))}
+function speciesList(){const source=(state.subject==='mammalogy'&&typeof SOURCE_SPECIES!=='undefined'&&Array.isArray(SOURCE_SPECIES))?SOURCE_SPECIES:[];const edits=loadSpeciesEdits();const merged=source.map(s=>edits[s.id]?{...s,...edits[s.id]}:s);return [...merged,...state.customSpecies]}
 function featureDefaults(){return {collection:true,badges:true,streak:true,daily:true,surprise:true,galleries:true,mystery:true,trouble:true,smartReview:true,sessionResults:true,xp:true,themes:true,journal:true,studyThis:true,mastery:true,recent:true,favorites:true,stats:true,history:true,clues:true,studyBuilder:true}}
 function loadFeatures(){try{return {...featureDefaults(),...JSON.parse(localStorage.getItem(subjectKey(FEATURES_KEY))||'{}')}}catch{return featureDefaults()}}
 function saveFeatures(f){state.features={...featureDefaults(),...f};localStorage.setItem(subjectKey(FEATURES_KEY),JSON.stringify(state.features))}
@@ -569,6 +571,27 @@ function updateCardPreview(){
   const pc=$('previewCategory');if(pc)pc.textContent=cat;
   const pt=$('previewTags');if(pt)pt.innerHTML=selectedEditorTags().map(t=>`<span class="tag secondary">${esc(t)}</span>`).join('');
 }
+function openEditSpecies(){
+  const s=selectedSpecies(); if(!s)return;
+  const info=state.speciesInfo[s.id]||{};
+  const modal=document.createElement('div'); modal.className='modal-backdrop'; modal.id='editSpeciesModal';
+  modal.innerHTML=`<div class="modal-card species-edit-modal"><div class="section-head"><div><h2>✏️ Edit Species</h2><p class="muted">Fix the common name, scientific name, family, notes, or identification clues. Your changes are saved in this browser.</p></div><button type="button" onclick="closeEditSpecies()">✕</button></div><div class="form-grid"><label>Common name<input id="editSpeciesCommon" value="${esc(s.common||'')}"></label><label>Scientific name<input id="editSpeciesScientific" value="${esc(s.scientific||'')}"></label><label>Family <span class="muted">(optional)</span><input id="editSpeciesFamily" value="${esc(s.family||'')}"></label></div><label>My species notes<textarea id="editSpeciesNotes" rows="7">${esc(info.notes||'')}</textarea></label><label>My identification clues<textarea id="editSpeciesClues" rows="7">${esc(info.clues||'')}</textarea></label><div id="editSpeciesError" class="editor-error"></div><div class="button-row"><button type="button" class="primary" onclick="saveEditedSpecies()">💾 Save Changes</button><button type="button" onclick="closeEditSpecies()">Cancel</button></div></div>`;
+  document.body.appendChild(modal);
+}
+function closeEditSpecies(){document.getElementById('editSpeciesModal')?.remove()}
+async function saveEditedSpecies(){
+  const s=selectedSpecies(); if(!s)return;
+  const common=$('editSpeciesCommon')?.value.trim(), scientific=$('editSpeciesScientific')?.value.trim(), family=$('editSpeciesFamily')?.value.trim()||'';
+  const err=$('editSpeciesError'); if(!common||!scientific){if(err)err.textContent='Common name and scientific name are required.';return}
+  if(s.custom){
+    const updated={...s,common,scientific,family}; await dbPut(SPECIES_STORE,updated);
+  }else{
+    const edits=loadSpeciesEdits(); edits[s.id]={common,scientific,family}; saveSpeciesEdits(edits);
+  }
+  await dbPut(INFO_STORE,{speciesId:s.id,notes:$('editSpeciesNotes')?.value||'',clues:$('editSpeciesClues')?.value||''});
+  await refreshStudyData(); state.selectedSpeciesId=s.id; closeEditSpecies(); render();
+}
+
 function imageCategoryManagerHtml(){
   return `<section class="panel image-category-manager"><div class="section-head"><div><h3>Image Categories</h3><p class="muted">Create custom labels for the images in your species library. These categories appear in the image upload and tagging dropdowns.</p></div></div><div class="tag-input-row"><input id="newImageTypeName" placeholder="e.g., External Anatomy, Tracks, Dentition" onkeydown="if(event.key==='Enter'){event.preventDefault();addImageType()}"><button type="button" onclick="addImageType()">Add category</button></div><div class="tag-chip-list">${imageTypes().map(t=>DEFAULT_IMAGE_TYPES.some(x=>x.id===t.id)?`<span class="tag-chip">${esc(t.label)}</span>`:`<span class="tag-chip">${esc(t.label)} <button type="button" onclick="removeImageType('${esc(t.id)}')">×</button></span>`).join('')}</div></section>`
 }
@@ -588,7 +611,7 @@ function renderManage(app){
       <div class="detail-back-row"><button onclick="state.selectedSpeciesId=null;render()">← Back to Species Library</button></div>
       ${imageCategoryManagerHtml()}
       <section class="study-main">
-        <div class="species-heading"><div><h2>${esc(s.common)}</h2><p>${sciHtml(s.scientific)} · ${esc(s.family||'Unclassified')}</p></div><div class="button-row"><button onclick="setScreen('study')">Study this species</button></div></div>
+        <div class="species-heading"><div><h2>${esc(s.common)}</h2><p>${sciHtml(s.scientific)} · ${esc(s.family||'Unclassified')}</p></div><div class="button-row"><button type="button" onclick="openEditSpecies()">✏️ Edit species</button><button onclick="setScreen('study')">Study this species</button></div></div>
         <div class="paste-box" id="pasteBox" tabindex="0"><strong>📋 Paste an image here</strong><span>Click this area, then press <b>Ctrl + V</b>. The image is shown for confirmation before it is saved.</span><button type="button" class="primary" onclick="preparePasteImage()">📋 Prepare for Ctrl + V</button></div>
         <div class="upload-row"><label class="file-button">📁 Add multiple images<input id="imageFiles" type="file" accept="image/*" multiple onchange="handleFiles(this.files);resetImageFileInput(this)"></label><button type="button" onclick="importGooglePhotosToSpecies()">📷 Add from Google Photos</button><select id="newImageType">${imageTypeOptions()}</select></div><p class="muted batch-upload-help">You can select multiple image files at once. Each image will be added to this species and can be edited or masked individually.</p><div id="batchUploadStatus" class="batch-upload-status" aria-live="polite"></div><p class="muted google-photos-help"><b>Google Photos privacy:</b> Search for the animal/species you want, then select 1–2 images. Only photos you select are imported into this Vault.</p>
         <div class="image-grid">${imgs.map(i=>`<div class="image-admin"><img src="${esc(i.data)}" onclick="openLightbox('${esc(i.data)}')"><div class="image-admin-meta"><span>${i.custom?'Your image':'Course image'}${i.edited?' · Edited':''}</span><select onchange="setImageTag('${esc(i.id)}',this.value)">${imageTypeOptions((i.viewTypes||[])[0]||'mixed')}</select><button type="button" onclick="openImageEditor('${esc(i.id)}')">✏️ Edit image</button><button type="button" onclick="openImageMaskEditor('${esc(i.id)}')">${i.quizMask?'Edit quiz text area':'Set quiz text area'}</button>${i.edited?`<button type="button" onclick="resetImageEdit('${esc(i.id)}')">Reset image edit</button>`:''}${i.quizMask?`<button type="button" onclick="clearImageMask('${esc(i.id)}')">Clear quiz mask</button>`:''}${i.custom?`<button class="danger" onclick="removeCustomImage('${esc(i.id)}')">Delete</button>`:''}</div></div>`).join('')}</div>
@@ -764,35 +787,45 @@ function openMaskEditor(src,initial,onSave,title='Set quiz text areas'){
   let activeDrag=null;
   function renderBoxes(){
     boxLayer.innerHTML='';
+    boxLayer.style.touchAction='none';
+    boxLayer.style.userSelect='none';
     boxes.forEach((b,i)=>{
       const el=document.createElement('div');
       el.className='mask-box'+(b.id===selectedId?' selected':'');
       el.dataset.id=b.id;
       el.style.left=b.x+'%';el.style.top=b.y+'%';el.style.width=b.w+'%';el.style.height=b.h+'%';
-      el.innerHTML=`<span>${b.mode==='hide'?'COVER':'BLUR'} ${i+1}</span><i class="mask-resize"></i>`;
-      const beginDrag=(clientX,clientY,isResize,e)=>{
+      el.style.pointerEvents='auto';
+      el.innerHTML=`<span>${b.mode==='hide'?'COVER':'BLUR'} ${i+1}</span><i class="mask-resize" aria-label="Resize box"></i>`;
+      el.onpointerdown=e=>{
+        const isResize=e.target instanceof Element && e.target.classList.contains('mask-resize');
         selectedId=b.id;
-        activeDrag={id:b.id,resize:isResize,startX:clientX,startY:clientY,start:{...b}};
+        activeDrag={id:b.id,pointerId:e.pointerId,resize:isResize,startX:e.clientX,startY:e.clientY,start:{...b}};
         boxLayer.querySelectorAll('.mask-box').forEach(node=>node.classList.toggle('selected',node.dataset.id===selectedId));
         syncControls();
-        if(e){e.preventDefault();e.stopPropagation()}
+        el.style.cursor=isResize?'nwse-resize':'grabbing';
+        document.body.style.userSelect='none';
+        try{el.setPointerCapture(e.pointerId)}catch{}
+        e.preventDefault();
+        e.stopPropagation();
       };
-      el.addEventListener('mousedown',e=>beginDrag(e.clientX,e.clientY,e.target instanceof Element && e.target.classList.contains('mask-resize'),e));
-      el.addEventListener('touchstart',e=>{
-        const t=e.touches[0];if(!t)return;
-        beginDrag(t.clientX,t.clientY,e.target instanceof Element && e.target.classList.contains('mask-resize'),e);
-      },{passive:false});
       boxLayer.appendChild(el);
     });
     syncControls();
   }
-  function finishMaskDrag(){activeDrag=null}
-  function moveMaskDrag(clientX,clientY,e){
-    const d=activeDrag;if(!d)return;
+  function finishMaskDrag(e){
+    if(!activeDrag)return;
+    if(e?.pointerId!=null && activeDrag.pointerId!==e.pointerId)return;
+    const el=boxLayer.querySelector('.mask-box[data-id="'+CSS.escape(activeDrag.id)+'"]');
+    if(el)el.style.cursor='move';
+    activeDrag=null;
+    document.body.style.userSelect='';
+  }
+  function moveMaskDrag(e){
+    const d=activeDrag;if(!d||d.pointerId!==e.pointerId)return;
     const b=boxes.find(x=>x.id===d.id);if(!b)return;
-    const r=layer.getBoundingClientRect();
+    const r=boxLayer.getBoundingClientRect();
     if(!r.width||!r.height)return;
-    const dx=(clientX-d.startX)/r.width*100,dy=(clientY-d.startY)/r.height*100;
+    const dx=(e.clientX-d.startX)/r.width*100,dy=(e.clientY-d.startY)/r.height*100;
     if(d.resize){
       b.w=clamp(d.start.w+dx,5,100-d.start.x);
       b.h=clamp(d.start.h+dy,5,100-d.start.y);
@@ -802,13 +835,11 @@ function openMaskEditor(src,initial,onSave,title='Set quiz text areas'){
     }
     const el=boxLayer.querySelector('.mask-box[data-id="'+CSS.escape(b.id)+'"]');
     if(el){el.style.left=b.x+'%';el.style.top=b.y+'%';el.style.width=b.w+'%';el.style.height=b.h+'%';}
-    if(e)e.preventDefault();
+    e.preventDefault();
   }
-  window.addEventListener('mousemove',e=>moveMaskDrag(e.clientX,e.clientY,e),{passive:false});
-  window.addEventListener('mouseup',finishMaskDrag);
-  window.addEventListener('touchmove',e=>{const t=e.touches[0];if(t)moveMaskDrag(t.clientX,t.clientY,e)},{passive:false});
-  window.addEventListener('touchend',finishMaskDrag);
-  window.addEventListener('touchcancel',finishMaskDrag);
+  document.addEventListener('pointermove',moveMaskDrag,{passive:false,capture:true});
+  document.addEventListener('pointerup',finishMaskDrag,{capture:true});
+  document.addEventListener('pointercancel',finishMaskDrag,{capture:true});
   function addBox(boxMode){
     const offset=Math.min(boxes.length*4,25);const b={...defaultQuizMask(),id:'mask-'+Math.random().toString(36).slice(2),x:Math.min(70,10+offset),y:Math.min(70,10+offset),w:30,h:15,mode:boxMode};
     boxes.push(b);selectedId=b.id;renderBoxes();

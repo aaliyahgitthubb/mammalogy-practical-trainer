@@ -1,14 +1,6 @@
-The Mammal Vault — Update 2.0.9
-
-FIX: Rebuilt quiz-mask dragging using direct mouse events plus touch events. Blur and Cover boxes now use the same drag controller and no longer depend on pointer capture/bubbling behavior.
-
-Included:
-- index.html
-- manifest.webmanifest
-- styles.css
-- app.js
-- sw.js
-- version.json
-- UPDATE_NOTES.txt
-
-Keep your existing data.js and embedded_images.js in the GitHub repository. Replace the seven files above.
+Mammal Vault v2.1.0
+- Added Edit Species for correcting common name, scientific name, family, notes, and clues.
+- Rebuilt Blur/Cover mask dragging using pointer events captured at the document level.
+- Blur and Cover boxes now use the same drag controller; mouse, touch, and pen input are supported.
+- Added pointer-event/user-selection safeguards so the image cannot steal the drag.
+- Existing data.js and embedded_images.js are intentionally not included; keep your existing copies.
