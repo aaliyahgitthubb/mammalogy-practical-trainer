@@ -1,4 +1,1 @@
-{
-  "version": "2.1.4",
-  "build": "study-species-edited-images-and-toggles-fixed"
-}
+{"version":"2.1.5","name":"The Mammal Vault","notes":"Study Species quiz masks now render saved blur/cover boxes on the displayed specimen image."}

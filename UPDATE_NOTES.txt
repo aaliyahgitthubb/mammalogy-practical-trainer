@@ -1,10 +1,4 @@
-VERSION 2.1.4 — Study Species edited-image and question-toggle repair
-
-Fixes:
-- Study Species now stores the resolved edited specimen image for the active question, so the displayed image is the saved edited copy rather than a later fallback to the original.
-- Built-in images use the saved mammalogy-image-edits copy when available.
-- Uploaded images use their saved editedDataUrl when available.
-- Study Species 1–4 and 5–8 question toggles are now exposed to the page event handlers so clicking them actually changes the selected question groups.
-- Toggling a section updates the question count, progress, current question, and completion state immediately.
-
-Keep existing data.js and embedded_images.js.
+v2.1.5 — Study Species mask rendering fix
+- Saved per-image blur/cover boxes now render on the Study Species random specimen image.
+- Cover boxes use the same saved mask data as the Image Practical.
+- Existing image edits, species data, and IndexedDB data are preserved.
