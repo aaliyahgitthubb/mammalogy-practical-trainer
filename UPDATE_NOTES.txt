@@ -1,11 +1,7 @@
-v1.9.6 — Added document-style species Notes with inline flashcard creation.
-- Notes are editable directly on each species study page.
-- “🃏 Insert Flashcard” inserts a marked Question/Answer block at the cursor.
-- Only marked flashcard blocks are converted into study cards.
-- Re-running “Create Flashcards from Notes” updates existing note-linked cards instead of duplicating them.
-- Normal notes remain normal notes.
-- No AI or external API is required.
-- Existing specimen images and flashcard image attachment functionality retained.
+Mammal Vault v1.9.8
 
-
-v1.9.7 — Fixed Paste Image so clipboard images are detected at the page level instead of requiring the paste box to retain focus. Normal text fields are excluded from the image paste handler.
+Paste Image Fix
+- Added an explicit “Paste from Clipboard” button using the browser Clipboard API.
+- Retained Ctrl+V image paste as a fallback.
+- Paste works from Manage Species & Images for the selected species.
+- No changes to existing image editing, quiz masking, Google Photos, or flashcard features.

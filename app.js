@@ -588,7 +588,7 @@ function renderManage(app){
       ${imageCategoryManagerHtml()}
       <section class="study-main">
         <div class="species-heading"><div><h2>${esc(s.common)}</h2><p>${sciHtml(s.scientific)} · ${esc(s.family||'Unclassified')}</p></div><div class="button-row"><button onclick="setScreen('study')">Study this species</button></div></div>
-        <div class="paste-box" id="pasteBox" tabindex="0"><strong>Paste an image here</strong><span>Copy an image anywhere, then click here and press <b>Ctrl + V</b>.</span></div>
+        <div class="paste-box" id="pasteBox" tabindex="0"><strong>📋 Paste an image here</strong><span>Copy an image, then use the button below or click here and press <b>Ctrl + V</b>.</span><button type="button" class="primary" onclick="pasteImageFromClipboard()">📋 Paste from Clipboard</button></div>
         <div class="upload-row"><label class="file-button">Add image files<input id="imageFiles" type="file" accept="image/*" multiple onchange="handleFiles(this.files)"></label><button type="button" onclick="importGooglePhotosToSpecies()">📷 Add from Google Photos</button><select id="newImageType">${imageTypeOptions()}</select></div><p class="muted google-photos-help"><b>Google Photos privacy:</b> Search for the animal/species you want, then select 1–2 images. Only photos you select are imported into this Vault.</p>
         <div class="image-grid">${imgs.map(i=>`<div class="image-admin"><img src="${esc(i.data)}" onclick="openLightbox('${esc(i.data)}')"><div class="image-admin-meta"><span>${i.custom?'Your image':'Course image'}${i.edited?' · Edited':''}</span><select onchange="setImageTag('${esc(i.id)}',this.value)">${imageTypeOptions((i.viewTypes||[])[0]||'mixed')}</select><button type="button" onclick="openImageEditor('${esc(i.id)}')">✏️ Edit image</button><button type="button" onclick="openImageMaskEditor('${esc(i.id)}')">${i.quizMask?'Edit quiz text area':'Set quiz text area'}</button>${i.edited?`<button type="button" onclick="resetImageEdit('${esc(i.id)}')">Reset image edit</button>`:''}${i.quizMask?`<button type="button" onclick="clearImageMask('${esc(i.id)}')">Clear quiz mask</button>`:''}${i.custom?`<button class="danger" onclick="removeCustomImage('${esc(i.id)}')">Delete</button>`:''}</div></div>`).join('')}</div>
       </section>
@@ -623,7 +623,34 @@ async function handlePaste(e){
   const items=[...(e.clipboardData?.items||[])];
   const item=items.find(x=>x.type.startsWith('image/'));
   if(!item)return;
-  const file=item.getAsFile(); if(file)await saveImageFile(file,currentImageType());
+  e.preventDefault?.();
+  const file=item.getAsFile();
+  if(file)await saveImageFile(file,currentImageType());
+}
+
+async function pasteImageFromClipboard(){
+  if(state.screen!=='manage'||!selectedSpecies()){alert('Select a species first.');return}
+  if(!navigator.clipboard?.read){
+    alert('Your browser does not provide Clipboard image access here. Try clicking the paste area and pressing Ctrl + V.');
+    return;
+  }
+  try{
+    const items=await navigator.clipboard.read();
+    for(const item of items){
+      const type=item.types.find(t=>String(t).startsWith('image/'));
+      if(!type)continue;
+      const blob=await item.getType(type);
+      if(blob&&blob.type.startsWith('image/')){
+        const file=new File([blob],`Pasted image.${type.split('/')[1]||'png'}`,{type:blob.type});
+        await saveImageFile(file,currentImageType());
+        return;
+      }
+    }
+    alert('No image was found in the clipboard. Copy an image first, then try again.');
+  }catch(err){
+    console.error('Clipboard image paste failed:',err);
+    alert('The browser blocked clipboard access. Try clicking the paste area and pressing Ctrl + V, or allow clipboard access for this site.');
+  }
 }
 async function handleFiles(files){for(const f of files)await saveImageFile(f,currentImageType())}
 function imageEditorDefault(){return {rotation:0,flipX:false,flipY:false,brightness:100,contrast:100,saturation:100,crop:{x:0,y:0,w:100,h:100}}}
@@ -777,7 +804,7 @@ Object.assign(window,{
   openStudySpecies,setStudySpecies,studyNext,studyPrev,shuffleStudyCards,
   openStudyNewCard,openStudyEditCard,submitCardEditor,cancelCardEditor,
   saveCard,editCard,deleteCard,editSpeciesInfo,cardEditorSpeciesChanged,selectEditorImage,setEditorImagePlacement,
-  handlePaste,handleFiles,saveImageFile,removeCustomImage,setImageTag,openPendingSpeciesMaskEditor,openPendingSpeciesImageEditor,openImageMaskEditor,openImageEditor,resetImageEdit,closeImageEditor,clearImageMask,closeImageMaskEditor,handleNewSpeciesFiles,removePendingSpeciesImage,captureAddSpeciesForm,importGooglePhotosToSpecies,saveGooglePhotosSettings,
+  handlePaste,pasteImageFromClipboard,handleFiles,saveImageFile,removeCustomImage,setImageTag,openPendingSpeciesMaskEditor,openPendingSpeciesImageEditor,openImageMaskEditor,openImageEditor,resetImageEdit,closeImageEditor,clearImageMask,closeImageMaskEditor,handleNewSpeciesFiles,removePendingSpeciesImage,captureAddSpeciesForm,importGooglePhotosToSpecies,saveGooglePhotosSettings,
   toggleFavorite,openLightbox,closeLightbox,
   enableAllFeatures,disableOptionalFeatures,setFeature,
   addSpeciesFromForm,filterSpeciesLibrary,openManageLibrary,resetProgress,exportBackup,triggerImportBackup,importBackup,
